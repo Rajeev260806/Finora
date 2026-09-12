@@ -4,6 +4,10 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from pathlib import Path
+
+# Add project root to sys.path to allow imports from src
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from src.environment.portfolioenv import PortfolioEnv
 

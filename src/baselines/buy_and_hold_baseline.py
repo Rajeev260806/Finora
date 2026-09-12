@@ -56,8 +56,9 @@ def run_buy_and_hold(data):
 
 if __name__ == "__main__":
 
-    # Load the cleaned dataset
-    data = pd.read_parquet("data/clean/full_dataset.parquet")
+    if len(sys.argv) < 2:
+        raise SystemExit("Usage: python buy_and_hold_baseline.py <path to full_dataset.parquet>")
+    data = pd.read_parquet(sys.argv[1])
 
     # Run Buy & Hold
     history = run_buy_and_hold(data)

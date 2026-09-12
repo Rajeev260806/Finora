@@ -1,3 +1,4 @@
+import sys
 import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
@@ -14,8 +15,9 @@ def calculate_correlation(data):
 
 
 if __name__ == "__main__":
-
-    data = pd.read_parquet("data/clean/full_dataset.parquet")
+    if len(sys.argv) < 2:
+        raise SystemExit("Usage: python correlation_analysis.py <path to full_dataset.parquet>")
+    data = pd.read_parquet(sys.argv[1])
 
     correlation = calculate_correlation(data)
 

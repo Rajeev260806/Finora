@@ -2,6 +2,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import sys
+from pathlib import Path
+
+# Add project root to sys.path to allow imports from src
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from src.environment.portfolioenv import PortfolioEnv
 

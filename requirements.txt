@@ -1,0 +1,8 @@
+numpy
+pandas
+matplotlib
+yfinance
+quantstats
+networkx
+gymnasium
+pyarrow

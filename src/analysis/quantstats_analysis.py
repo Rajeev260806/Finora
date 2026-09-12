@@ -1,6 +1,10 @@
 import sys
 import pandas as pd
 import quantstats as qs
+from pathlib import Path
+
+# Add project root to sys.path to allow imports from src
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
 # Load dataset
 if len(sys.argv) < 2:
