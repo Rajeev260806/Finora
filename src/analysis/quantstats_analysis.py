@@ -1,11 +1,15 @@
+import sys
 import pandas as pd
 import quantstats as qs
 
 # Load dataset
-data = pd.read_parquet("data/clean/full_dataset.parquet")
+if len(sys.argv) < 2:
+    raise SystemExit("Usage: python quantstats_analysis.py <path to full_dataset.parquet>")
+data_path = sys.argv[1]
+data = pd.read_parquet(data_path)
 
 # Run Buy & Hold
-from buy_and_hold_baseline import run_buy_and_hold
+from src.baselines.buy_and_hold_baseline import run_buy_and_hold
 
 history = run_buy_and_hold(data)
 

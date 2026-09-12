@@ -19,7 +19,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from portfolioenv import PortfolioEnv
+from src.environment.portfolioenv import PortfolioEnv
 
 
 def run_equal_weight_episode(env: PortfolioEnv) -> pd.DataFrame:

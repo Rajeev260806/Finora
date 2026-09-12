@@ -14,7 +14,7 @@ import sys
 import numpy as np
 import pandas as pd
 
-from portfolioenv import PortfolioEnv
+from src.environment.portfolioenv import PortfolioEnv
 
 
 def run_equal_weight_episode(env: PortfolioEnv) -> pd.DataFrame:

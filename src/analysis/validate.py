@@ -16,7 +16,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from portfolioenv import PortfolioEnv
+from src.environment.portfolioenv import PortfolioEnv
 
 
 def run_random_episode(env: PortfolioEnv, seed: int) -> pd.DataFrame:

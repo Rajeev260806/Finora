@@ -1,15 +1,16 @@
 import numpy as np
 import pandas as pd
+import sys
 
-from portfolioenv import PortfolioEnv
+from src.environment.portfolioenv import PortfolioEnv
 
-from compare_baselines import (
+from src.analysis.compare_baselines import (
     run_buy_and_hold,
     run_equal_weight,
     run_momentum
 )
 
-from visualization import (
+from src.visualization.visualization import (
     plot_portfolio_value,
     plot_drawdown,
     plot_turnover,
@@ -21,8 +22,6 @@ from visualization import (
 # -----------------------------
 # Settings
 # -----------------------------
-
-DATA_PATH = "data/clean/full_dataset.parquet"
 
 LOOKBACK_DAYS = 252
 REBALANCE_DAYS = 21
@@ -303,7 +302,10 @@ if __name__ == "__main__":
 
     print("Loading dataset...")
 
-    data = pd.read_parquet(DATA_PATH)
+    if len(sys.argv) < 2:
+        raise SystemExit("Usage: python strategy_comparison.py <path to full_dataset.parquet>")
+    data_path = sys.argv[1]
+    data = pd.read_parquet(data_path)
 
     print("Dataset loaded.")
     print(f"Number of rows: {len(data)}")

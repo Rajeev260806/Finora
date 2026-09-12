@@ -1,15 +1,14 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import sys
 
-from portfolioenv import PortfolioEnv
+from src.environment.portfolioenv import PortfolioEnv
 
 
 # -----------------------------
 # Settings
 # -----------------------------
-DATA_PATH = "data/clean/full_dataset.parquet"
-
 LOOKBACK_DAYS = 252       # approximately 12 months
 SKIP_DAYS = 21            # skip most recent month
 TOP_N = 5                 # invest in top 5 stocks
@@ -24,6 +23,9 @@ SEED = 0
 # -----------------------------
 # Load data
 # -----------------------------
+if len(sys.argv) < 2:
+    raise SystemExit("Usage: python momentum_baseline.py <path to full_dataset.parquet>")
+DATA_PATH = sys.argv[1]
 data = pd.read_parquet(DATA_PATH)
 
 print("Dataset loaded.")

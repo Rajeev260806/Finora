@@ -1,3 +1,7 @@
 project_notes.md
 phase_wise_split.md
 PHASE_1_PERSON_A_GUIDE.md
+PHASE_1_PERSON_B_GUIDE.md
+PHASE_1_PERSON_C_GUIDE.md
+.dist
+__pycache__
