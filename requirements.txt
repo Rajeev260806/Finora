@@ -6,3 +6,4 @@ quantstats
 networkx
 gymnasium
 pyarrow
+scikit-learn

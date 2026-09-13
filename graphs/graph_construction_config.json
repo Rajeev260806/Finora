@@ -1,0 +1,20 @@
+{
+    "returns_column": "Log Return",
+    "rolling_window": 60,
+    "correlation_method": "Pearson",
+    "correlation_threshold": 0.4,
+    "threshold_type": "absolute",
+    "self_loops": false,
+    "sector_mapping_source": "Manually defined ticker-to-sector mapping",
+    "node_attributes": [
+        "ticker",
+        "sector"
+    ],
+    "edge_attributes": [
+        "weight",
+        "correlation"
+    ],
+    "graph_type": "Undirected NetworkX graph",
+    "graph_storage": "Pickle (.pkl)",
+    "graph_indexing": "Chronological, starting from graph_0000.pkl"
+}
