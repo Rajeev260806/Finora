@@ -8,6 +8,8 @@ trades after the first step (weights stay ~constant), so its value
 path isolates "is the return calculation right?" from "is turnover
 cost realistic?" — this is the check the Phase 1 checklist asks for.
 
+Explains what will eb the result if I equally allocate the cash to every resource instead of using ML/RL
+
 Usage:
     python equal_weight_baseline.py data/clean/full_dataset.parquet
 """
