@@ -1,0 +1,10 @@
+{
+    "lookback_days": 60,
+    "rebalance_days": 21,
+    "risk_aversion": 1.0,
+    "transaction_cost_bps": 10.0,
+    "initial_value": 1.0,
+    "seed": 0,
+    "optimization": "long-only mean-variance",
+    "transaction_cost_model": "linear turnover bps"
+}
