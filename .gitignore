@@ -1,11 +1,156 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-log.txt
+pip-delete-this-directory.txt
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+media
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyCharm
+.idea/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+ipython_profile_context.py
+# Requests and krequests
+requests.ini
+
+# Rodeo
+rodeo.cfg
+
+# Pytest
+.pytest_cache/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 project_notes.md
 phase_wise_split.md
 PHASE_1_PERSON_A_GUIDE.md
 PHASE_2_PERSON_A_GUIDE.md
+PHASE_3_PERSON_A_GUIDE.md
 PHASE_1_PERSON_B_GUIDE.md
 PHASE_2_PERSON_B_GUIDE.md
 PHASE_1_PERSON_C_GUIDE.md
+PHASE_2_PERSON_C_GUIDE.md
+
 .dist
 __pycache__
 venv/
 graphs/saved_graphs
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy_cache
+.dmypy_hist
+
+# PyTorch models
+*.pth
+*.pt
+
+# TensorFlow models
+saved_model/
+
+# Tensorboard
+logs/
+
+# Output files
+*.log
+*.csv
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.xlsx
+*.xls
+*.doc
+*.docx
+*.pdf
+
+# Specific to this project
+.dist
+graphs/saved_graphs/
+graphs/gnn_data/
+venv/
