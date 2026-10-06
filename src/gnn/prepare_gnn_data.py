@@ -8,12 +8,10 @@ import pandas as pd
 # Paths
 # ==================================================
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-PROJECT_DIR = os.path.dirname(BASE_DIR)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 DATA_PATH = os.path.join(
-    PROJECT_DIR,
+    BASE_DIR,
     "data",
     "clean",
     "full_dataset.parquet"
@@ -21,11 +19,13 @@ DATA_PATH = os.path.join(
 
 GRAPHS_DIR = os.path.join(
     BASE_DIR,
+    "graphs",
     "saved_graphs"
 )
 
 OUTPUT_DIR = os.path.join(
     BASE_DIR,
+    "graphs",
     "gnn_data"
 )
 

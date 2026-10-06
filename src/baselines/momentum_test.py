@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 
 
@@ -21,8 +22,10 @@ def calculate_momentum(returns, end_idx):
 
 if __name__ == "__main__":
 
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
     data = pd.read_parquet(
-        "data/clean/full_dataset.parquet"
+        os.path.join(BASE_DIR, "data", "clean", "full_dataset.parquet")
     )
 
     returns = data["Returns Daily"].unstack(

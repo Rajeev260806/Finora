@@ -4,10 +4,29 @@ from stable_baselines3 import PPO
 
 from src.environment.gnn_portfolio_env import GNNPortfolioEnv
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-DATA_PATH = "data/clean/full_dataset.parquet"
-EMBEDDING_DIR = "graphs/gnn_models/embeddings"
-MODEL_PATH = "models/gnn_ppo"
+DATA_PATH = os.path.join(
+    BASE_DIR,
+    "data",
+    "clean",
+    "full_dataset.parquet"
+)
+
+EMBEDDING_DIR = os.path.join(
+    BASE_DIR,
+    "src",
+    "gnn",
+    "embeddings"
+)
+
+MODEL_PATH = os.path.join(
+    BASE_DIR,
+    "src",
+    "gnn",
+    "models",
+    "gnn_ppo"
+)
 
 
 data = pd.read_parquet(DATA_PATH)
@@ -32,7 +51,7 @@ steps = 0
 while True:
     action, _ = model.predict(obs, deterministic=True)
 
-    obs, reward, terminated, truncated, info = env.step(action)
+    obs, reward, terminated, truncated, env.step(action)
 
     total_reward += reward
     steps += 1

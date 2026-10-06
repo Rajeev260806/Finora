@@ -3,7 +3,13 @@ import pickle
 import networkx as nx
 import pandas as pd
 
-GRAPHS_DIR = "graphs/saved_graphs"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+GRAPHS_DIR = os.path.join(
+    BASE_DIR,
+    "graphs",
+    "saved_graphs"
+)
 
 graph_files = sorted(
     f for f in os.listdir(GRAPHS_DIR)

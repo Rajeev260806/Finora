@@ -5,11 +5,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 EMBEDDINGS_DIR = os.path.join(
     BASE_DIR,
-    "gnn_models",
     "embeddings"
 )
 
-EXPECTED_SHAPE = (20, 16)
+EXPECTED_SHAPE = (20, 32)
 
 print("=" * 60)
 print("GNN EMBEDDING VALIDATION")

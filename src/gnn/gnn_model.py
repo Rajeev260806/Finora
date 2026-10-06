@@ -14,19 +14,29 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 GNN_DATA_DIR = os.path.join(
     BASE_DIR,
+    "..",
+    "..",
+    "graphs",
     "gnn_data"
 )
 
 MODEL_DIR = os.path.join(
     BASE_DIR,
-    "gnn_models"
+    "models"
+)
+
+EMBEDDING_DIR = os.path.join(
+    BASE_DIR,
+    "embeddings"
 )
 
 os.makedirs(MODEL_DIR, exist_ok=True)
+os.makedirs(EMBEDDING_DIR, exist_ok=True)
 
 INPUT_FEATURES = 5
-HIDDEN_FEATURES = 32
-OUTPUT_FEATURES = 16
+HIDDEN_FEATURES = 64
+OUTPUT_FEATURES = 32
+DROPOUT_RATE = 0.2  
 
 
 # ============================================================
@@ -39,7 +49,8 @@ class StockGNN(torch.nn.Module):
         self,
         input_features,
         hidden_features,
-        output_features
+        output_features,
+        dropout_rate=0.0
     ):
         super().__init__()
 
@@ -53,6 +64,8 @@ class StockGNN(torch.nn.Module):
             output_features
         )
 
+        self.dropout_rate = dropout_rate
+
     def forward(self, x, edge_index, edge_weight):
 
         x = self.conv1(
@@ -62,6 +75,7 @@ class StockGNN(torch.nn.Module):
         )
 
         x = F.relu(x)
+        x = F.dropout(x, p=self.dropout_rate, training=self.training)
 
         x = self.conv2(
             x,
@@ -89,7 +103,7 @@ def load_graph(graph_index):
 
     x = torch.tensor(
         data["node_features"],
-        dtype=torch.float
+        dtype=torch.float32
     )
 
     edge_index = torch.tensor(
@@ -99,7 +113,7 @@ def load_graph(graph_index):
 
     edge_weight = torch.tensor(
         data["edge_weight"],
-        dtype=torch.float
+        dtype=torch.float32
     )
 
     sector_id = torch.tensor(
@@ -170,7 +184,8 @@ if __name__ == "__main__":
     model = StockGNN(
         input_features=INPUT_FEATURES,
         hidden_features=HIDDEN_FEATURES,
-        output_features=OUTPUT_FEATURES
+        output_features=OUTPUT_FEATURES,
+        dropout_rate=DROPOUT_RATE
     )
 
     print("\nGNN Model:")
@@ -221,7 +236,7 @@ if __name__ == "__main__":
     # --------------------------------------------------------
 
     embedding_path = os.path.join(
-        MODEL_DIR,
+        EMBEDDING_DIR,
         "embeddings_graph_0000.npy"
     )
 

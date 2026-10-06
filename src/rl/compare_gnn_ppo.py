@@ -1,13 +1,33 @@
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from stable_baselines3 import PPO
 
 from src.environment.gnn_portfolio_env import GNNPortfolioEnv
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-DATA_PATH = "data/clean/full_dataset.parquet"
-EMBEDDING_DIR = "graphs/gnn_models/embeddings"
-MODEL_PATH = "models/gnn_ppo"
+DATA_PATH = os.path.join(
+    BASE_DIR,
+    "data",
+    "clean",
+    "full_dataset.parquet"
+)
+
+EMBEDDING_DIR = os.path.join(
+    BASE_DIR,
+    "src",
+    "gnn",
+    "embeddings"
+)
+
+MODEL_PATH = os.path.join(
+    BASE_DIR,
+    "src",
+    "gnn",
+    "models",
+    "gnn_ppo"
+)
 
 data = pd.read_parquet(DATA_PATH)
 
@@ -29,7 +49,7 @@ values = [1.0]
 
 while True:
     action, _ = model.predict(obs, deterministic=True)
-    obs, reward, terminated, truncated, info = env.step(action)
+    obs, reward, terminated, truncated, env.step(action)
 
     values.append(info["portfolio_value"])
 
@@ -60,19 +80,24 @@ print("PHASE 2 STRATEGY COMPARISON")
 print("=" * 60)
 print(results.to_string(index=False))
 
-results.to_csv(
-    "gnn_ppo_comparison.csv",
-    index=False
-)
+# Save results to results/csv/
+csv_dir = os.path.join(BASE_DIR, "results", "csv")
+os.makedirs(csv_dir, exist_ok=True)
+csv_path = os.path.join(csv_dir, "gnn_ppo_comparison.csv")
+results.to_csv(csv_path, index=False)
 
+# Save plot to results/plots/
 plt.figure(figsize=(10, 6))
 plt.bar(results["Strategy"], results["Final Value"])
 plt.ylabel("Final Portfolio Value")
 plt.title("Phase 1 Baselines vs GNN + PPO")
 plt.xticks(rotation=20)
 plt.tight_layout()
-plt.savefig("gnn_ppo_comparison.png")
+png_dir = os.path.join(BASE_DIR, "results", "plots")
+os.makedirs(png_dir, exist_ok=True)
+png_path = os.path.join(png_dir, "gnn_ppo_comparison.png")
+plt.savefig(png_path)
 
 print("\nSaved:")
-print("gnn_ppo_comparison.csv")
-print("gnn_ppo_comparison.png")
+print(csv_path)
+print(png_path)

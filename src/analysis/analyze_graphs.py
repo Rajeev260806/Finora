@@ -9,20 +9,23 @@ import matplotlib.pyplot as plt
 # Paths
 # --------------------------------------------------
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 GRAPHS_DIR = os.path.join(
     BASE_DIR,
+    "graphs",
     "saved_graphs"
 )
 
 PLOTS_DIR = os.path.join(
     BASE_DIR,
+    "results",
     "plots"
 )
 
 OUTPUT_FILE = os.path.join(
     BASE_DIR,
+    "graphs",
     "graph_features.csv"
 )
 

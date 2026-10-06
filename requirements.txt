@@ -7,3 +7,5 @@ networkx
 gymnasium
 pyarrow
 scikit-learn
+torch
+torch_geometric

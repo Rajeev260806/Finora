@@ -5,10 +5,28 @@ from stable_baselines3.common.env_checker import check_env
 
 from src.environment.gnn_portfolio_env import GNNPortfolioEnv
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-DATA_PATH = "data/clean/full_dataset.parquet"
-EMBEDDING_DIR = "graphs/gnn_models/embeddings"
-MODEL_DIR = "models"
+DATA_PATH = os.path.join(
+    BASE_DIR,
+    "data",
+    "clean",
+    "full_dataset.parquet"
+)
+
+EMBEDDING_DIR = os.path.join(
+    BASE_DIR,
+    "src",
+    "gnn",
+    "embeddings"
+)
+
+MODEL_DIR = os.path.join(
+    BASE_DIR,
+    "src",
+    "gnn",
+    "models"
+)
 
 os.makedirs(MODEL_DIR, exist_ok=True)
 

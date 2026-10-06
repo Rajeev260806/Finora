@@ -137,7 +137,8 @@ def sector_homophily(G):
 def load_graph_by_index(idx: int) -> nx.Graph:
 
     base_dir = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "graphs",
         "saved_graphs"
     )
 
@@ -158,12 +159,10 @@ if __name__ == "__main__":
     # Paths
     # --------------------------------------------------
 
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-    PROJECT_DIR = os.path.dirname(BASE_DIR)
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     DATA_PATH = os.path.join(
-        PROJECT_DIR,
+        BASE_DIR,
         "data",
         "clean",
         "train.parquet"
@@ -171,11 +170,13 @@ if __name__ == "__main__":
 
     GRAPHS_DIR = os.path.join(
         BASE_DIR,
+        "graphs",
         "saved_graphs"
     )
 
     PLOTS_DIR = os.path.join(
         BASE_DIR,
+        "results",
         "plots"
     )
 
