@@ -75,6 +75,12 @@ class PortfolioEnv(gym.Env):
         transaction_cost_bps: float = 10.0,
         initial_cash: float = 1.0,
         return_col: str | None = None,
+        use_embeddings: bool = False,
+        embedding_dim: int = 32,
+        embedding_dir: str | None = None,
+        lambda_vol: float = 0.0,
+        lambda_conc: float = 0.0,
+        lambda_txn: float = 1.0,
         seed: int | None = None,
     ):
         """
@@ -93,6 +99,20 @@ class PortfolioEnv(gym.Env):
         return_col : str, optional
             Explicit name of the returns column in `data`. If omitted,
             the env tries to auto-detect a sensible column name.
+        use_embeddings : bool, default=False
+            If True, observation space returns GNN node embeddings
+            instead of return windows. Used for Phase 3 testing and Phase 4 RL.
+        embedding_dim : int, default=32
+            Dimensionality of GNN embeddings per asset node.
+        embedding_dir : str, optional
+            Directory path containing pre-computed GNN embedding files (.npy).
+            If None, checks 'src/gnn/embeddings' automatically. If missing, synthetic placeholder embeddings are generated.
+        lambda_vol : float, default=0.0
+            Penalty weight for annualized 20-day rolling portfolio volatility (Phase 2 model).
+        lambda_conc : float, default=0.0
+            Penalty weight for asset concentration (HHI across risky assets).
+        lambda_txn : float, default=1.0
+            Multiplier for transaction cost deduction in reward calculation.
         seed : int, optional
             RNG seed for reproducibility.
         """
@@ -100,10 +120,19 @@ class PortfolioEnv(gym.Env):
 
         if window < 1:
             raise ValueError("window must be >= 1")
+        if embedding_dim < 1:
+            raise ValueError("embedding_dim must be >= 1")
 
         self.window = window
         self.tc_rate = transaction_cost_bps / 10_000.0
         self.initial_cash = initial_cash
+        self.use_embeddings = use_embeddings
+        self.embedding_dim = embedding_dim
+        self.embedding_dir = embedding_dir
+        self.lambda_vol = lambda_vol
+        self.lambda_conc = lambda_conc
+        self.lambda_txn = lambda_txn
+        self.seed_val = seed
 
         # ---- reshape the panel data into a (n_dates, n_assets) returns matrix ----
         self.tickers = sorted(data.index.get_level_values(-1).unique())
@@ -133,24 +162,36 @@ class PortfolioEnv(gym.Env):
 
         # ---- spaces ----
         # Action: n_assets + 1 (cash) raw logits -> softmax'd internally
-        # in _process_action. Using unconstrained logits (rather than
-        # asking the policy to output valid weights directly) means any
+        # in _process_action. Using unconstrained logits means any
         # RL algorithm with a Box action space works out of the box.
         self.action_space = spaces.Box(
             low=-10.0, high=10.0, shape=(self.n_assets + 1,), dtype=np.float32
         )
 
-        self.observation_space = spaces.Dict(
-            {
-                "returns_window": spaces.Box(
-                    low=-np.inf, high=np.inf,
-                    shape=(self.n_assets, self.window), dtype=np.float32,
-                ),
-                "weights": spaces.Box(
-                    low=0.0, high=1.0, shape=(self.n_assets + 1,), dtype=np.float32
-                ),
-            }
-        )
+        if self.use_embeddings:
+            self.observation_space = spaces.Dict(
+                {
+                    "gnn_embeddings": spaces.Box(
+                        low=-np.inf, high=np.inf,
+                        shape=(self.n_assets, self.embedding_dim), dtype=np.float32,
+                    ),
+                    "weights": spaces.Box(
+                        low=0.0, high=1.0, shape=(self.n_assets + 1,), dtype=np.float32
+                    ),
+                }
+            )
+        else:
+            self.observation_space = spaces.Dict(
+                {
+                    "returns_window": spaces.Box(
+                        low=-np.inf, high=np.inf,
+                        shape=(self.n_assets, self.window), dtype=np.float32,
+                    ),
+                    "weights": spaces.Box(
+                        low=0.0, high=1.0, shape=(self.n_assets + 1,), dtype=np.float32
+                    ),
+                }
+            )
 
         self._np_rng = np.random.default_rng(seed)
         self.current_idx = self.window
@@ -180,6 +221,7 @@ class PortfolioEnv(gym.Env):
     def reset(self, seed: int | None = None, options: dict | None = None):
         super().reset(seed=seed)
         if seed is not None:
+            self.seed_val = seed
             self._np_rng = np.random.default_rng(seed)
 
         self.current_idx = self.window  # first index with a full window behind it
@@ -194,12 +236,59 @@ class PortfolioEnv(gym.Env):
         return obs, info
 
     def _get_observation(self, idx: int) -> dict:
-        window_slice = self.returns[idx - self.window: idx]  # (window, n_assets)
-        returns_window = window_slice.T.astype(np.float32)  # (n_assets, window)
-        return {
-            "returns_window": returns_window,
-            "weights": self.prev_weights.copy(),
-        }
+        if self.use_embeddings:
+            emb = self._load_or_generate_embeddings(idx)
+            return {
+                "gnn_embeddings": emb,
+                "weights": self.prev_weights.copy(),
+            }
+        else:
+            window_slice = self.returns[idx - self.window: idx]  # (window, n_assets)
+            returns_window = window_slice.T.astype(np.float32)  # (n_assets, window)
+            return {
+                "returns_window": returns_window,
+                "weights": self.prev_weights.copy(),
+            }
+
+    def _load_or_generate_embeddings(self, idx: int) -> np.ndarray:
+        """Loads GNN embeddings from file if available; otherwise generates placeholder embeddings."""
+        import os
+        dirs_to_check = []
+        if self.embedding_dir:
+            dirs_to_check.append(self.embedding_dir)
+        dirs_to_check.extend([
+            os.path.join("src", "gnn", "embeddings"),
+            os.path.join("graphs", "saved_embeddings"),
+        ])
+
+        patterns = [
+            f"embedding_{idx:04d}.npy",
+            f"embeddings_graph_{idx:04d}.npy",
+            f"embeddings_{idx:04d}.npy",
+            f"{idx:04d}.npy",
+        ]
+
+        for target_dir in dirs_to_check:
+            if target_dir and os.path.exists(target_dir):
+                for filename in patterns:
+                    filepath = os.path.join(target_dir, filename)
+                    if os.path.exists(filepath):
+                        emb = np.load(filepath).astype(np.float32)
+                        if emb.shape == (self.n_assets, self.embedding_dim):
+                            return emb
+                        elif emb.ndim == 2 and emb.shape[0] == self.n_assets:
+                            dim = emb.shape[1]
+                            if dim > self.embedding_dim:
+                                return emb[:, :self.embedding_dim].astype(np.float32)
+                            elif dim < self.embedding_dim:
+                                padded = np.zeros((self.n_assets, self.embedding_dim), dtype=np.float32)
+                                padded[:, :dim] = emb
+                                return padded
+
+        # Deterministic synthetic placeholder embeddings for reproducibility
+        seed = (self.seed_val or 42) + idx
+        rng = np.random.default_rng(seed)
+        return (rng.standard_normal((self.n_assets, self.embedding_dim)) * 0.1).astype(np.float32)
 
     @staticmethod
     def _softmax(x: np.ndarray) -> np.ndarray:
@@ -221,13 +310,38 @@ class PortfolioEnv(gym.Env):
         cost = self.tc_rate * turnover
         return turnover, cost
 
-    def _calculate_reward(self, port_return: float, cost: float) -> float:
-        net_return = port_return - cost
-        # guard against log(<=-1) if costs ever exceed -100% (shouldn't
-        # happen with long-only weights, but keeps reward finite)
+    def _calculate_reward(
+        self,
+        port_return: float,
+        cost: float,
+        asset_weights: np.ndarray,
+        window_returns: np.ndarray,
+    ) -> float:
+        """Calculates risk-adjusted, cost-aware modular reward (supporting Phase 2 spec)."""
+        net_return = port_return - (self.lambda_txn * cost)
+
         if net_return <= -1.0:
-            return -10.0
-        return float(np.log1p(net_return))
+            log_net_return = -10.0
+        else:
+            log_net_return = float(np.log1p(net_return))
+
+        # Volatility penalty (annualized 20-day rolling portfolio volatility)
+        vol_penalty = 0.0
+        if self.lambda_vol > 0.0 and window_returns.size > 0 and np.sum(asset_weights) > 0.0:
+            # window_returns is (window, n_assets)
+            port_win_returns = window_returns @ asset_weights  # (window,)
+            if len(port_win_returns) > 1:
+                daily_vol = float(np.std(port_win_returns, ddof=1))
+                ann_vol = daily_vol * np.sqrt(252.0)
+                vol_penalty = self.lambda_vol * ann_vol
+
+        # Concentration penalty (Herfindahl-Hirschman Index across risky assets)
+        conc_penalty = 0.0
+        if self.lambda_conc > 0.0:
+            hhi = float(np.sum(asset_weights ** 2))
+            conc_penalty = self.lambda_conc * hhi
+
+        return log_net_return - vol_penalty - conc_penalty
 
     def step(self, action):
         weights = self._process_action(action)          # (n_assets+1,), last = cash
@@ -236,7 +350,10 @@ class PortfolioEnv(gym.Env):
 
         port_return = float(np.dot(asset_weights, today_returns))  # cash contributes 0
         turnover, cost = self._apply_transaction_costs(weights)
-        reward = self._calculate_reward(port_return, cost)
+
+        # Get window slice for reward volatility penalty if needed
+        window_slice = self.returns[max(0, self.current_idx - self.window): self.current_idx]
+        reward = self._calculate_reward(port_return, cost, asset_weights, window_slice)
 
         self.portfolio_value *= (1.0 + port_return - cost)
         self.prev_weights = weights
@@ -254,7 +371,9 @@ class PortfolioEnv(gym.Env):
             "turnover": turnover,
             "transaction_cost": cost,
             "raw_return": port_return,
+            "net_return": port_return - cost,
             "cash_weight": float(weights[-1]),
+            "reward": reward,
         }
         self.history.append(info)
 
@@ -265,9 +384,10 @@ class PortfolioEnv(gym.Env):
         print(
             f"Date: {self.dates[idx].date()} | "
             f"Portfolio value: {self.portfolio_value:.4f} | "
-            f"Cash weight: {self.prev_weights[-1]:.2%}"
+            f"Cash weight: {self.prev_weights[-1]:.2%} | "
+            f"Obs mode: {'GNN Embeddings' if self.use_embeddings else 'Returns Window'}"
         )
 
     def get_history_df(self) -> pd.DataFrame:
         """Episode log for Person C — value/turnover/return/cash per step."""
-        return pd.DataFrame(self.history).set_index("date")
+        return pd.DataFrame(self.history).set_index("date")
