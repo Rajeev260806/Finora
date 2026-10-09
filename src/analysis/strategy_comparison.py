@@ -27,7 +27,7 @@ from src.visualization.visualization import (
 # Settings
 # -----------------------------
 
-LOOKBACK_DAYS = 252
+LOOKBACK_DAYS = 60
 REBALANCE_DAYS = 21
 
 RISK_AVERSION = 1.0
@@ -49,7 +49,7 @@ def optimize_mean_variance(
     learning_rate=0.01
 ):
     mean_returns = returns.mean().values
-    covariance = returns.cov().values
+    covariance = np.cov(returns.to_numpy(), rowvar=False)
 
     n_assets = len(mean_returns)
 
@@ -104,6 +104,7 @@ def run_mean_variance(data):
         data=data,
         window=LOOKBACK_DAYS,
         transaction_cost_bps=TRANSACTION_COST_BPS,
+        initial_cash=INITIAL_VALUE,
         seed=SEED
     )
 
@@ -114,16 +115,11 @@ def run_mean_variance(data):
     done = False
 
     current_idx = LOOKBACK_DAYS
+    last_rebalance_idx = -REBALANCE_DAYS
 
     while not done:
 
-        if (
-            current_idx >= LOOKBACK_DAYS
-            and (
-                current_idx == LOOKBACK_DAYS
-                or current_idx % REBALANCE_DAYS == 0
-            )
-        ):
+        if current_idx - last_rebalance_idx >= REBALANCE_DAYS:
 
             historical_returns = returns.iloc[
                 max(
@@ -176,6 +172,7 @@ def run_mean_variance(data):
                 weights[-1] = 0.0
 
                 action = weights_to_action(weights)
+                last_rebalance_idx = current_idx
 
             else:
 
@@ -413,10 +410,10 @@ if __name__ == "__main__":
     # -------------------------
 
     comparison_df.to_csv(
-        "strategy_comparison.csv"
+        "strategy_comparison_aligned.csv"
     )
 
-    print("Saved: strategy_comparison.csv")
+    print("Saved: strategy_comparison_aligned.csv")
 
     # -------------------------
     # Generate Visualizations
