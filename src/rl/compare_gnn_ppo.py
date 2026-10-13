@@ -1,11 +1,14 @@
 import os
+import sys
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, BASE_DIR)
+
 import pandas as pd
 import matplotlib.pyplot as plt
 from stable_baselines3 import PPO
 
 from src.environment.gnn_portfolio_env import GNNPortfolioEnv
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 DATA_PATH = os.path.join(
     BASE_DIR,
@@ -49,7 +52,7 @@ values = [1.0]
 
 while True:
     action, _ = model.predict(obs, deterministic=True)
-    obs, reward, terminated, truncated, env.step(action)
+    obs, reward, terminated, truncated, info = env.step(action)
 
     values.append(info["portfolio_value"])
 

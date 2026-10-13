@@ -5,7 +5,9 @@ from stable_baselines3.common.env_checker import check_env
 
 from src.environment.gnn_portfolio_env import GNNPortfolioEnv
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+import sys
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, BASE_DIR)
 
 DATA_PATH = os.path.join(
     BASE_DIR,

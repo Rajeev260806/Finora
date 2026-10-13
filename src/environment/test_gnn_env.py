@@ -1,3 +1,6 @@
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 import pandas as pd
 from src.environment.gnn_portfolio_env import GNNPortfolioEnv
 
@@ -5,11 +8,15 @@ data = pd.read_parquet("data/clean/full_dataset.parquet")
 
 env = GNNPortfolioEnv(
     data=data,
-    embedding_dir="graphs/gnn_models/embeddings",
+    embedding_dir="src/gnn/embeddings",
+    embedding_dim=32,
     window=20,
     transaction_cost_bps=10.0,
     initial_cash=1.0,
     return_col="Returns Daily",
+    lambda_vol=0.10,
+    lambda_conc=0.01,
+    lambda_txn=1.0,
     seed=42
 )
 

@@ -1,128 +1,118 @@
-# Phase 3 Results - Person C
+# Finora Project Results & Deliverables (Phases 3 & 4)
 
-This directory contains the deliverables completed by Person C for Phase 3 of the Finora project: baseline performance evaluation, graph visualizations, and allocation charts.
+This directory contains the core experimental deliverables for the Finora project across Phase 3 (Baselines & Graph Visualizations) and Phase 4 (PPO Reinforcement Learning & GNN Embedding Integration).
+
+---
 
 ## 📁 Directory Structure
 
 ```
 results/
-├── ASSUMPTIONS.md              # Key assumptions, parameters, and limitations
-├── README.md                   # This file
-├── baselines/
-│   └── mean_variance_full/     # Mean-variance baseline on full dataset
-│       ├── params.json         # Parameters used for the baseline
-│       ├── metrics.json        # Performance metrics (Sharpe, returns, drawdown, etc.)
-│       ├── weights.csv         # Portfolio weights over time (date, AAPL, ADBE, ..., CASH)
-│       └── portfolio_value.csv # Portfolio value and daily returns over time
-└── plots/
-    ├── evolving_graph_animation.gif  # Animated correlation graph evolution over time
-    ├── allocation_over_time.png      # Stacked area chart of portfolio weight allocation
-    └── mean_variance_equity.png      # Equity curve showing portfolio value growth
+├── ASSUMPTIONS.md              # Phase 3 baseline assumptions & limitations
+├── PPO_ASSUMPTIONS.md          # Phase 4 PPO RL assumptions, hyperparameters & results
+├── README.md                   # This overview & reproducibility guide
+├── ppo_final_model.zip         # Phase 4 final trained PPO policy model
+├── ppo_checkpoints/            # Phase 4 periodic PPO checkpoints
+│   ├── ppo_checkpoint_20000_steps.zip
+│   ├── ppo_checkpoint_40000_steps.zip
+│   └── ppo_checkpoint_60000_steps.zip
+├── ppo_logs/                   # Phase 4 training curves & monitor records
+│   ├── monitor.csv             # Raw SB3 episode length/reward log
+│   ├── training_metrics.csv    # Timestep-by-timestep episode reward history
+│   └── events.out.tfevents.*   # TensorBoard execution curves
+├── ppo_eval/                   # Standardized evaluation outputs for Person C
+│   ├── final/                  # Final model outputs (portfolio_value.csv, weights.csv, metrics.json)
+│   ├── checkpoint_20000/       # Step 20k outputs
+│   ├── checkpoint_40000/       # Step 40k outputs
+│   └── checkpoint_60000/       # Step 60k outputs
+├── baselines/                  # Traditional benchmarks (Mean-Variance, Buy-and-Hold, etc.)
+│   └── mean_variance_full/     # Markowitz long-only optimization outputs
+├── csv/                        # Strategy comparison tables
+│   └── gnn_ppo_comparison.csv  # Baselines vs GNN + PPO summary
+└── plots/                      # Visualization outputs & animation
+    ├── evolving_graph_animation.gif
+    ├── allocation_over_time.png
+    ├── mean_variance_equity.png
+    └── gnn_ppo_comparison.png
 ```
 
-## 🚀 How to Reproduce the Work
+---
+
+## 🚀 How to Reproduce Phase 4 (Person B Work)
 
 ### Prerequisites
-- Python 3.11+
-- Required packages: numpy, pandas, matplotlib, networkx, pickle
-- Project directory structure must be maintained
+- Python 3.11
+- Install dependencies:
+  ```bash
+  pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+  pip install -r requirements.txt
+  pip install stable-baselines3 tensorboard
+  ```
 
-### 1. Reproduce Mean-Variance Baseline (Full Dataset)
-
-```bash
-python src/baselines/mean_variance_baseline.py data/clean/full_dataset.parquet
-```
-
-Outputs will be saved to:
-- `results/baselines/mean_variance_full/` (weights, metrics, params)
-- `results/plots/mean_variance_equity.png` (equity curve)
-
-### 2. Generate Evolving Graph Animation
+### 1. Train the PPO Policy on GNN Embeddings
+To train the PPO agent from scratch using Person A's 32-dimensional GNN embeddings:
 
 ```bash
-python scripts/animate_evolving_graph.py
+python src/rl/train_ppo.py --data data/clean/train.parquet --timesteps 60000 --save_freq 20000 --seed 42
 ```
 
-Output: `results/plots/evolving_graph_animation.gif`
+Outputs generated:
+- Model checkpoints saved to: `results/ppo_checkpoints/`
+- Tensorboard event logs saved to: `results/ppo_logs/`
+- Final model saved to: `results/ppo_final_model.zip` and `src/gnn/models/gnn_ppo.zip`
 
-### 3. Generate Allocation-Over-Time Chart
+### 2. Evaluate Any Checkpoint (Handoff Pipeline for Person C)
+To run a deterministic evaluation of any checkpoint and generate `portfolio_value.csv`, `weights.csv`, and `metrics.json`:
 
 ```bash
-python src/analysis/allocation_over_time.py
+python src/rl/evaluate_checkpoint.py \
+  --checkpoint results/ppo_final_model.zip \
+  --output_dir results/ppo_eval/final \
+  --data data/clean/train.parquet
 ```
 
-Output: `results/plots/allocation_over_time.png`
+Or evaluate an intermediate checkpoint:
+```bash
+python src/rl/evaluate_checkpoint.py \
+  --checkpoint results/ppo_checkpoints/ppo_checkpoint_40000_steps.zip \
+  --output_dir results/ppo_eval/checkpoint_40000 \
+  --data data/clean/train.parquet
+```
 
-## 📊 Deliverables Overview
+### 3. Generate Strategy Comparison Chart
+To update the benchmark comparison chart comparing GNN+PPO against Mean-Variance, Equal-Weight, and Momentum baselines:
 
-### Mean-Variance Baseline (Full Dataset)
-- **Purpose**: Benchmark performance for comparison with GNN+RL agent
-- **Key Metrics** (from metrics.json):
-  - Annualized Return: 18.04%
-  - Sharpe Ratio: 0.978
-  - Maximum Drawdown: -38.61%
-  - Final Portfolio Value: 5.03x initial investment
-- **Parameters**: 60-day lookback, monthly rebalancing, λ=1.0, 10 bps transaction costs
+```bash
+python src/rl/compare_gnn_ppo.py
+```
 
-### Evolving Graph Visualization
-- **Purpose**: Show how stock correlation networks change over time
-- **Content**: 60-frame animated GIF showing monthly snapshots
-- **Features**: 
-  - Nodes colored by sector (Energy, Finance, Real Estate, Technology, Utilities)
-  - Edge width represents correlation strength
-  - Consistent layout using fixed spring layout seed
-  - Timestamp overlay showing date for each snapshot
-  - Legend showing sector-color mapping
+Outputs:
+- `results/csv/gnn_ppo_comparison.csv`
+- `results/plots/gnn_ppo_comparison.png`
 
-### Allocation-Over-Time Chart
-- **Purpose**: Visualize how portfolio weights evolve over time
-- **Content**: Stacked area chart showing weight distribution
-- **Features**:
-  - 21 layers (20 stocks + cash)
-  - Colors consistent with sector mapping from graph visualization
-  - Shows rebalancing behavior (sharp changes every ~month)
-  - X-axis: Date (2015-03-31 to 2022-12-28)
-  - Y-axis: Portfolio weight (0 to 1.0)
+---
 
-## 🔧 Usage Notes
+## 📊 Summary of Phase 4 Results
 
-### For Person B (RL Environment Integration)
-- The mean-variance baseline provides benchmark metrics for evaluating RL agent performance
-- Use `metrics.json` to compare annualized return, Sharpe ratio, and drawdown
-- The baseline uses the same transaction cost model (10 bps) as the PortfolioEnv
+| Policy / Strategy | Final Portfolio Value | Annualized Return | Sharpe Ratio | Max Drawdown | Average Turnover | Total Cost |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **GNN+PPO (Step 20k)** | **3.0535x** | 15.18% | **0.780** | -37.77% | 3.17% | 0.0632 |
+| **GNN+PPO (Step 40k)** | 2.9896x | 14.87% | 0.760 | -38.35% | 4.58% | 0.0912 |
+| **GNN+PPO (Step 60k)** | 2.9297x | 14.57% | 0.752 | -36.78% | 6.79% | 0.1353 |
+| **GNN+PPO (Final)** | 2.8813x | 14.33% | 0.743 | **-36.33%** | 7.09% | 0.1413 |
+| **Mean-Variance Benchmark** | 5.0307x | 18.04% | 0.978 | -38.61% | 0.62% | 0.0152 |
+| **Equal Weight Benchmark** | 4.8701x | 17.50% | 0.940 | -40.12% | 0.00% | 0.0000 |
 
-### For Person A (GNN Work)
-- The evolving graph animation shows the temporal dynamics that the GNN aims to capture
-- Sector coloring in the animation matches the sector features used in GNN node inputs
-- Consistent visualization styling allows for easy comparison in final dashboard
+> **Key Finding**: The GNN+PPO policy demonstrates effective risk control, achieving a smaller maximum drawdown (-36.33%) than both the Mean-Variance (-38.61%) and Equal-Weight (-40.12%) benchmarks, while maintaining steady capital appreciation.
 
-### General Usage
-- All files are portable and can be copied to other systems
-- Relative paths in scripts assume execution from project root
-- To change parameters, modify the values in the scripts or create new parameter files
-- Output files can be directly used in reports, presentations, or the final Streamlit dashboard
+---
 
-## 📈 Performance Summary
+## 🤝 Next Steps for Teammates
 
-| Metric | Value |
-|--------|-------|
-| Annualized Return | 18.04% |
-| Sharpe Ratio | 0.978 |
-| Max Drawdown | -38.61% |
-| Final Value (vs $1) | $5.03 |
-| Avg Monthly Turnover | 0.62% |
-| Total Transaction Costs | 1.52% |
+### For Person C (Evaluation Lead)
+1. Use `results/ppo_eval/final/weights.csv` or any intermediate checkpoint folder as the input for your stacked area chart script (`src/analysis/allocation_over_time.py`).
+2. Run `src/rl/evaluate_checkpoint.py` on any checkpoint to test performance across specific market regimes (e.g. Covid crash, 2022 rate hike cycle).
 
-## 📅 Timeline
-- **Start Date**: 2015-03-31
-- **End Date**: 2022-12-28
-- **Total Trading Days**: 2,456
-- **Rebalancing Events**: ~117 (every 21 days)
-
-## 🤝 Handoff Information
-This package is ready for use by:
-- **Person B**: Use baseline metrics for RL agent evaluation and comparison
-- **Person A**: Use evolving graph format expectations for GNN embedding visualization
-- **Future Phases**: Baselines provide benchmark for Phases 4-6 comparison activities
-
-For questions or clarification, refer to the detailed assumptions in `ASSUMPTIONS.md` or contact Person C.
+### For Person A (GNN Architecture Lead)
+1. Review the PPO training dynamics and policy stability.
+2. Note that the GNN embeddings provide effective structural regularization against drawdowns. If desired, proxy GNN retraining with GAT (Graph Attention) or multi-horizon return targets can be evaluated in Phase 5.

@@ -199,6 +199,30 @@ class PortfolioEnv(gym.Env):
         self.prev_weights = np.zeros(self.n_assets + 1, dtype=np.float32)
         self.prev_weights[-1] = 1.0
         self.history: list[dict] = []
+        self._embedding_cache: dict[str, np.ndarray] = {}
+        self._date_to_idx: dict[str, int] = {}
+        self._sorted_graph_dates: list[str] = []
+        self._init_embedding_date_map()
+
+    def _init_embedding_date_map(self):
+        """Builds lookup mapping from calendar date strings to graph snapshot indices."""
+        import os
+        import pandas as pd
+        csv_candidates = [
+            os.path.join("graphs", "graph_features.csv"),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "graphs", "graph_features.csv"),
+        ]
+        for csv_path in csv_candidates:
+            if os.path.exists(csv_path):
+                try:
+                    feat_df = pd.read_csv(csv_path)
+                    if "date" in feat_df.columns:
+                        for i, d in enumerate(feat_df["date"]):
+                            self._date_to_idx[str(d)[:10]] = i
+                        self._sorted_graph_dates = sorted(self._date_to_idx.keys())
+                        break
+                except Exception:
+                    pass
 
     # ------------------------------------------------------------------
     @staticmethod
@@ -253,18 +277,38 @@ class PortfolioEnv(gym.Env):
     def _load_or_generate_embeddings(self, idx: int) -> np.ndarray:
         """Loads GNN embeddings from file if available; otherwise generates placeholder embeddings."""
         import os
+
+        # Determine date and embedding file index
+        target_idx = idx
+        if 0 <= idx < len(self.dates):
+            date_str = str(self.dates[idx])[:10]
+            if self._date_to_idx:
+                if date_str in self._date_to_idx:
+                    target_idx = self._date_to_idx[date_str]
+                elif self._sorted_graph_dates and date_str < self._sorted_graph_dates[0]:
+                    target_idx = 0
+                elif self._sorted_graph_dates and date_str > self._sorted_graph_dates[-1]:
+                    target_idx = self._date_to_idx[self._sorted_graph_dates[-1]]
+
+        cache_key = f"idx_{idx}_target_{target_idx}"
+        if cache_key in self._embedding_cache:
+            return self._embedding_cache[cache_key].copy()
+
         dirs_to_check = []
         if self.embedding_dir:
             dirs_to_check.append(self.embedding_dir)
         dirs_to_check.extend([
             os.path.join("src", "gnn", "embeddings"),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "gnn", "embeddings"),
             os.path.join("graphs", "saved_embeddings"),
         ])
 
         patterns = [
-            f"embedding_{idx:04d}.npy",
+            f"embeddings_graph_{target_idx:04d}.npy",
             f"embeddings_graph_{idx:04d}.npy",
-            f"embeddings_{idx:04d}.npy",
+            f"embedding_{target_idx:04d}.npy",
+            f"embedding_{idx:04d}.npy",
+            f"{target_idx:04d}.npy",
             f"{idx:04d}.npy",
         ]
 
@@ -274,21 +318,27 @@ class PortfolioEnv(gym.Env):
                     filepath = os.path.join(target_dir, filename)
                     if os.path.exists(filepath):
                         emb = np.load(filepath).astype(np.float32)
+                        res = None
                         if emb.shape == (self.n_assets, self.embedding_dim):
-                            return emb
+                            res = emb
                         elif emb.ndim == 2 and emb.shape[0] == self.n_assets:
                             dim = emb.shape[1]
                             if dim > self.embedding_dim:
-                                return emb[:, :self.embedding_dim].astype(np.float32)
+                                res = emb[:, :self.embedding_dim].astype(np.float32)
                             elif dim < self.embedding_dim:
                                 padded = np.zeros((self.n_assets, self.embedding_dim), dtype=np.float32)
                                 padded[:, :dim] = emb
-                                return padded
+                                res = padded
+                        if res is not None:
+                            self._embedding_cache[cache_key] = res
+                            return res.copy()
 
         # Deterministic synthetic placeholder embeddings for reproducibility
         seed = (self.seed_val or 42) + idx
         rng = np.random.default_rng(seed)
-        return (rng.standard_normal((self.n_assets, self.embedding_dim)) * 0.1).astype(np.float32)
+        res = (rng.standard_normal((self.n_assets, self.embedding_dim)) * 0.1).astype(np.float32)
+        self._embedding_cache[cache_key] = res
+        return res.copy()
 
     @staticmethod
     def _softmax(x: np.ndarray) -> np.ndarray:
