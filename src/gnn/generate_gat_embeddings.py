@@ -19,7 +19,7 @@ EMBEDDING_DIR = os.path.join(BASE_DIR, "src", "gnn", "embeddings")
 os.makedirs(EMBEDDING_DIR, exist_ok=True)
 
 # Model hyperparameters
-INPUT_FEATURES = 5
+INPUT_FEATURES = 9  # Updated to include sector-relative features
 HIDDEN_FEATURES = 64
 OUTPUT_FEATURES = 32
 DROPOUT_RATE = 0.2

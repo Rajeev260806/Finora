@@ -81,6 +81,7 @@ class PortfolioEnv(gym.Env):
         lambda_vol: float = 0.0,
         lambda_conc: float = 0.0,
         lambda_txn: float = 1.0,
+        residual_alpha: float = 0.0,
         seed: int | None = None,
     ):
         """
@@ -113,6 +114,10 @@ class PortfolioEnv(gym.Env):
             Penalty weight for asset concentration (HHI across risky assets).
         lambda_txn : float, default=1.0
             Multiplier for transaction cost deduction in reward calculation.
+        residual_alpha : float, default=0.0
+            If > 0.0, implements residual policy around Equal Weight:
+            w = softmax(log(1/N) + residual_alpha * tanh(action))
+            as required by PROJECT_ACTION_PLAN.md Phase 3.1.
         seed : int, optional
             RNG seed for reproducibility.
         """
@@ -132,6 +137,7 @@ class PortfolioEnv(gym.Env):
         self.lambda_vol = lambda_vol
         self.lambda_conc = lambda_conc
         self.lambda_txn = lambda_txn
+        self.residual_alpha = residual_alpha
         self.seed_val = seed
 
         # ---- reshape the panel data into a (n_dates, n_assets) returns matrix ----
@@ -202,7 +208,37 @@ class PortfolioEnv(gym.Env):
         self._embedding_cache: dict[str, np.ndarray] = {}
         self._date_to_idx: dict[str, int] = {}
         self._sorted_graph_dates: list[str] = []
+        self._preloaded_embeddings: dict[int, np.ndarray] = {}
         self._init_embedding_date_map()
+        if self.use_embeddings:
+            self._preload_embeddings()
+
+    def _preload_embeddings(self):
+        """Preloads embeddings into RAM for instantaneous O(1) step access during training."""
+        import os
+        dirs_to_check = []
+        if self.embedding_dir:
+            dirs_to_check.append(self.embedding_dir)
+        dirs_to_check.extend([
+            os.path.join("src", "gnn", "embeddings"),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "gnn", "embeddings"),
+        ])
+        for target_dir in dirs_to_check:
+            if target_dir and os.path.exists(target_dir):
+                files = [f for f in os.listdir(target_dir) if f.endswith(".npy")]
+                for fname in files:
+                    try:
+                        # Extract integer index
+                        idx_part = "".join(c for c in fname.replace(".npy", "") if c.isdigit())
+                        if idx_part:
+                            idx = int(idx_part)
+                            emb = np.load(os.path.join(target_dir, fname)).astype(np.float32)
+                            if emb.shape == (self.n_assets, self.embedding_dim):
+                                self._preloaded_embeddings[idx] = emb
+                    except Exception:
+                        pass
+                if len(self._preloaded_embeddings) > 0:
+                    break
 
     def _init_embedding_date_map(self):
         """Builds lookup mapping from calendar date strings to graph snapshot indices."""
@@ -294,6 +330,11 @@ class PortfolioEnv(gym.Env):
         if cache_key in self._embedding_cache:
             return self._embedding_cache[cache_key].copy()
 
+        if target_idx in self._preloaded_embeddings:
+            res = self._preloaded_embeddings[target_idx]
+            self._embedding_cache[cache_key] = res
+            return res.copy()
+
         dirs_to_check = []
         if self.embedding_dir:
             dirs_to_check.append(self.embedding_dir)
@@ -347,12 +388,29 @@ class PortfolioEnv(gym.Env):
         return e / e.sum()
 
     def _process_action(self, action: np.ndarray) -> np.ndarray:
-        """Convert raw agent output into valid long-only weights (incl. cash)."""
+        """
+        Convert raw agent output into valid long-only weights (incl. cash).
+        Supports standard free-form softmax (residual_alpha=0) and residual policy
+        around Equal Weight (residual_alpha > 0):
+            w = softmax( log(w_base) + residual_alpha * tanh(action) )
+        as specified in PROJECT_ACTION_PLAN.md Phase 3.1.
+        """
         action = np.asarray(action, dtype=np.float32).reshape(-1)
         expected = self.n_assets + 1
         if action.shape[0] != expected:
             raise ValueError(f"Expected action of length {expected}, got {action.shape[0]}")
-        return self._softmax(action)
+
+        if self.residual_alpha > 0.0:
+            # Base weights: Equal weight across stocks (1/N), 0 for cash
+            base_weights = np.zeros(expected, dtype=np.float32)
+            base_weights[:self.n_assets] = 1.0 / self.n_assets
+            base_weights[-1] = 1e-4  # tiny epsilon for cash
+            base_logits = np.log(base_weights)
+            # Residual perturbation
+            logits = base_logits + self.residual_alpha * np.tanh(action)
+            return self._softmax(logits)
+        else:
+            return self._softmax(action)
 
     def _apply_transaction_costs(self, weights: np.ndarray) -> tuple[float, float]:
         """Returns (turnover, cost) for moving from prev_weights to weights."""

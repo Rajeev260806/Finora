@@ -1,0 +1,11 @@
+{
+    "final_portfolio_value": 2.499887961068916,
+    "annualized_return": 0.09695995180181116,
+    "sharpe_ratio": 0.5282565043240546,
+    "maximum_drawdown": -0.37698645768080774,
+    "mean_daily_return": 0.0004298226175990947,
+    "daily_volatility": 0.01156238077076617,
+    "average_turnover": 0.29285888558325285,
+    "total_transaction_cost": 0.7309757784157991,
+    "steps_evaluated": 2496
+}

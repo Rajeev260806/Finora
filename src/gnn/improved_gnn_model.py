@@ -33,7 +33,8 @@ EMBEDDING_DIR = os.path.join(
 os.makedirs(MODEL_DIR, exist_ok=True)
 os.makedirs(EMBEDDING_DIR, exist_ok=True)
 
-INPUT_FEATURES = 5
+# UPDATED: Increased from 5 to 9 features to include sector-relative signals
+INPUT_FEATURES = 9
 HIDDEN_FEATURES = 64
 OUTPUT_FEATURES = 32
 DROPOUT_RATE = 0.2

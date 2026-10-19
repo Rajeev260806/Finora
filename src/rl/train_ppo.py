@@ -143,7 +143,7 @@ def train_ppo(
         ent_coef=ent_coef,
         vf_coef=0.5,
         max_grad_norm=0.5,
-        tensorboard_log=log_dir,
+        tensorboard_log=None,
         seed=seed,
         verbose=1,
     )
@@ -197,6 +197,7 @@ if __name__ == "__main__":
     parser.add_argument("--lambda_vol", type=float, default=0.10)
     parser.add_argument("--lambda_conc", type=float, default=0.01)
     parser.add_argument("--lambda_txn", type=float, default=1.0)
+    parser.add_argument("--embedding_dir", type=str, default="src/gnn/embeddings", help="Directory containing GNN embeddings")
     args = parser.parse_args()
 
     train_ppo(
@@ -208,4 +209,5 @@ if __name__ == "__main__":
         lambda_vol=args.lambda_vol,
         lambda_conc=args.lambda_conc,
         lambda_txn=args.lambda_txn,
+        embedding_dir=args.embedding_dir,
     )

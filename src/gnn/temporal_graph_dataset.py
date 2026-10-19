@@ -3,6 +3,8 @@ import numpy as np
 import torch
 from torch_geometric.data import Data, Dataset
 from torch_geometric.loader import DataLoader
+import pandas as pd
+from typing import Dict, List
 
 
 class TemporalGraphDataset(Dataset):
@@ -37,6 +39,32 @@ class TemporalGraphDataset(Dataset):
             print(f"First 5 graph files: {self.graph_files[:5]}")
             print(f"Last 5 graph files: {self.graph_files[-5:]}")
 
+        # Load returns data for sector-relative feature computation
+        self._load_returns_and_sector_data()
+
+    def _load_returns_and_sector_data(self):
+        """Load returns data and create sector mapping for feature enhancement."""
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        RETURNS_DATA_PATH = os.path.join(BASE_DIR, "data", "clean", "full_dataset.parquet")
+
+        # Load returns data
+        returns_df = pd.read_parquet(RETURNS_DATA_PATH)
+        returns_wide = returns_df["Returns Daily"].unstack(level="Ticker")
+        returns_wide = returns_wide.fillna(0.0)
+        returns_wide = returns_wide.sort_index(axis=1)
+        self.returns_data = returns_wide
+
+        # Create sector mapping (simplified - in practice this would come from sector data)
+        # For now, assign sectors based on ticker hash to get consistent mapping
+        tickers = list(returns_wide.columns)
+        self.sector_mapping = {}
+        for i, ticker in enumerate(tickers):
+            # Simple hash-based sector assignment (5 sectors)
+            self.sector_mapping[ticker] = hash(ticker) % 5
+
+        print(f"Loaded returns data: {self.returns_data.shape}")
+        print(f"Created sector mapping for {len(self.sector_mapping)} tickers")
+
     def len(self):
         return len(self.graph_files)
 
@@ -49,7 +77,7 @@ class TemporalGraphDataset(Dataset):
 
     def get(self, idx):
         """
-        Load and return a graph at index idx.
+        Load and return a graph at index idx with enhanced sector-relative features.
 
         Returns:
             torch_geometric.data.Data: Graph data object
@@ -60,9 +88,87 @@ class TemporalGraphDataset(Dataset):
 
         data = np.load(filepath)
 
-        x = torch.tensor(data['node_features'], dtype=torch.float32)
+        # Original node features
+        x_original = torch.tensor(data['node_features'], dtype=torch.float32)
         edge_index = torch.tensor(data['edge_index'], dtype=torch.long).t().contiguous()
         edge_weight = torch.tensor(data['edge_weight'], dtype=torch.float32)
+
+        # Compute sector-relative features for this graph's date
+        graph_date = str(data['date'])
+        tickers = data['tickers']
+
+        # Get returns for this date
+        if graph_date in self.returns_data.index:
+            date_returns = self.returns_data.loc[graph_date]
+
+            # Compute sector statistics for this date
+            sector_relative_returns = np.zeros(len(tickers))
+            sector_relative_volatility = np.zeros(len(tickers))  # Simplified
+            sector_rankings = np.zeros(len(tickers))
+
+            # Group tickers by sector
+            sector_tickers = {}
+            for i, ticker in enumerate(tickers):
+                sector_id = self.sector_mapping.get(ticker, -1)
+                if sector_id not in sector_tickers:
+                    sector_tickers[sector_id] = []
+                sector_tickers[sector_id].append((i, ticker))
+
+            # Compute sector means and relative features
+            for sector_id, ticker_indices in sector_tickers.items():
+                if len(ticker_indices) > 0:
+                    # Get returns for tickers in this sector
+                    sector_returns = []
+                    valid_indices = []
+                    for idx_in_tickers, ticker in ticker_indices:
+                        if ticker in date_returns.index:
+                            sector_returns.append(date_returns[ticker])
+                            valid_indices.append(idx_in_tickers)
+
+                    if len(sector_returns) > 0:
+                        sector_mean = np.mean(sector_returns)
+
+                        # Compute sector-relative returns and rankings
+                        for i, idx_in_tickers in enumerate(valid_indices):
+                            ticker = ticker_indices[i][1]
+                            ticker_return = date_returns[ticker]
+                            sector_relative_returns[idx_in_tickers] = ticker_return - sector_mean
+
+                            # Compute ranking within sector (0 to 1)
+                            if len(sector_returns) > 1:
+                                sorted_returns = sorted(sector_returns)
+                                try:
+                                    rank = sorted_returns.index(ticker_return) / (len(sorted_returns) - 1)
+                                except ValueError:
+                                    rank = 0.5
+                                sector_rankings[idx_in_tickers] = rank
+                            else:
+                                sector_rankings[idx_in_tickers] = 0.5
+
+            # Normalize sector IDs to 0-1 range
+            sector_ids_normalized = np.array([
+                self.sector_mapping.get(ticker, -1) for ticker in tickers
+            ], dtype=np.float32)
+            max_sector_id = max(self.sector_mapping.values()) if self.sector_mapping else 1
+            sector_ids_normalized = sector_ids_normalized / (max_sector_id + 1e-8)
+
+            # Enhance node features with sector-relative signals
+            # Original: 5 features [returns, volatility_20d, volume_norm, volatility_annual, log_return]
+            # Enhanced: 9 features [original 5, sector_rel_return, sector_rel_vol, sector_rank, sector_id_norm]
+            sector_rel_features = np.column_stack([
+                sector_relative_returns,
+                sector_relative_volatility,
+                sector_rankings,
+                sector_ids_normalized
+            ])
+
+            # Combine original features with sector-relative features
+            x_enhanced = np.column_stack([x_original.numpy(), sector_rel_features])
+            x = torch.tensor(x_enhanced, dtype=torch.float32)
+        else:
+            # Fallback to original features if date not found
+            x = x_original
+            print(f"Warning: Date {graph_date} not found in returns data")
 
         graph_data = Data(
             x=x,

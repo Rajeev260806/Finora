@@ -1,9 +1,0 @@
-{
-    "correlation_threshold": 0.6,
-    "number_of_stocks": 20,
-    "number_of_edges": 22,
-    "number_of_clusters": 5,
-    "same_sector_edges": 21,
-    "cross_sector_edges": 1,
-    "sector_homophily": 0.9545
-}

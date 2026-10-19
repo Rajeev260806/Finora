@@ -27,6 +27,7 @@ class GNNPortfolioEnv(PortfolioEnv):
         lambda_vol: float = 0.10,
         lambda_conc: float = 0.01,
         lambda_txn: float = 1.0,
+        residual_alpha: float = 0.0,
         seed: int | None = None,
     ):
         if embedding_dir is None:
@@ -51,6 +52,7 @@ class GNNPortfolioEnv(PortfolioEnv):
             lambda_vol=lambda_vol,
             lambda_conc=lambda_conc,
             lambda_txn=lambda_txn,
+            residual_alpha=residual_alpha,
             seed=seed,
         )
 

@@ -135,8 +135,13 @@ def train_proxy_task(
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"\nUsing device: {device}")
 
+    # Get input features from dataset (should be 9 with sector-enhanced features)
+    sample_data = dataset[0]
+    input_features = sample_data.x.size(1)
+    print(f"Detected input features: {input_features}")
+
     model = StockGNN(
-        input_features=5,
+        input_features=input_features,
         hidden_features=64,
         output_features=32,
         dropout_rate=0.2
@@ -269,6 +274,10 @@ def evaluate_proxy_task(
     # Set model to evaluation mode
     model.eval()
     device = next(model.parameters()).device
+
+    # Get input features from dataset (should be 9 with sector-enhanced features)
+    sample_data = dataset[0]
+    input_features = sample_data.x.size(1)
 
     all_predictions = []
     all_targets = []
