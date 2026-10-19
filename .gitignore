@@ -151,9 +151,29 @@ logs/
 *.doc
 *.docx
 *.pdf
+*.npz
+*.npy
 
 # Specific to this project
 .dist
 graphs/saved_graphs/
 graphs/gnn_data/
 venv/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+venv/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment secrets
+.env
+.env.*
+
+# Generated logs
+*.log
