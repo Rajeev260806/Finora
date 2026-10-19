@@ -103,18 +103,18 @@ Primary goal: beat **Equal Weight** on Sharpe and/or max drawdown, out-of-sample
 
 ## Checklist
 
-- [ ] Split fixed: train 2015-2021, val 2022, test 2023-2024
-- [ ] Embeddings regenerated on train data only
-- [ ] Confirmed which embeddings the test script loads (GCN vs GAT)
-- [ ] Shared metrics function + unit test; Momentum and Buy & Hold numbers recomputed
-- [ ] Proxy task targets standardized; Spearman IC reported
-- [ ] All strategies re-run on the same period and costs
-- [ ] Residual policy around Equal Weight implemented
-- [ ] Timesteps raised to 300k+; reward penalty aligned with 10 bps cost
-- [ ] Ablation: no embeddings / random embeddings / GCN / GAT
-- [ ] 5 to 10 seeds, mean ± std reported
-- [ ] Final test run done once, after all tuning
-- [ ] README and claims updated to match the corrected results
+- [x] Split fixed: train 2015-2021, val 2022, test 2023-2024 (`data/clean/{train,val,test}.parquet`)
+- [x] Embeddings regenerated on train data only (`src/gnn/build_all_graphs.py`, `src/gnn/train_proxy_models.py`)
+- [x] Confirmed which embeddings the test script loads (Confirmed GAT Hybrid was generated into `src/gnn/embeddings_original`)
+- [x] Shared metrics function + unit test; Momentum and Buy & Hold numbers recomputed (`src/analysis/metrics.py`, `tests/test_metrics.py`)
+- [x] Proxy task targets standardized; Spearman IC reported (`src/gnn/train_proxy_models.py`)
+- [x] All strategies re-run on the same period and costs (`src/analysis/run_rigorous_evaluation.py`)
+- [x] Residual policy around Equal Weight implemented (`src/environment/portfolioenv.py`, `tests/test_residual_policy.py`)
+- [x] Timesteps raised to 300k+; reward penalty aligned with 10 bps cost (`PortfolioEnv` cost penalty matches exact 10 bps)
+- [x] Ablation: no embeddings / random embeddings / GCN / GAT (`src/analysis/run_rigorous_evaluation.py`)
+- [x] 5 to 10 seeds, mean ± std reported (5 seeds: `[42, 101, 202, 303, 404]`)
+- [x] Final test run done once, after all tuning (Holdout test evaluated once: 2022-12-29 to 2024-12-31)
+- [x] README and claims updated to match the corrected results (`results/FINAL_EVALUATION_REPORT.md`)
 
 ---
 
