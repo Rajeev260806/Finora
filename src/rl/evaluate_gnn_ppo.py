@@ -8,19 +8,20 @@ import pandas as pd
 from stable_baselines3 import PPO
 
 from src.environment.gnn_portfolio_env import GNNPortfolioEnv
+from src.analysis.metrics import compute_metrics_from_history
 
 DATA_PATH = os.path.join(
     BASE_DIR,
     "data",
     "clean",
-    "full_dataset.parquet"
+    "test.parquet"
 )
 
 EMBEDDING_DIR = os.path.join(
     BASE_DIR,
     "src",
     "gnn",
-    "embeddings"
+    "embeddings_gat" if os.path.exists(os.path.join(BASE_DIR, "src", "gnn", "embeddings_gat")) else "embeddings"
 )
 
 MODEL_PATH = os.path.join(
@@ -41,6 +42,12 @@ env = GNNPortfolioEnv(
     transaction_cost_bps=10.0,
     initial_cash=1.0,
     return_col="Returns Daily",
+    residual_alpha=0.15,
+    residual_mode="momentum",
+    rebalance_interval=5,
+    momentum_lookback=60,
+    momentum_temp=0.2,
+    downside_only=True,
     seed=0,
 )
 
@@ -63,17 +70,17 @@ while True:
         break
 
 history = env.get_history_df()
+metrics = compute_metrics_from_history(history)
 
 print("=" * 60)
-print("GNN + PPO EVALUATION")
+print("ENHANCED GNN + PPO OUT-OF-SAMPLE EVALUATION (TEST PERIOD)")
 print("=" * 60)
 
-print("Steps:", steps)
-print("Final portfolio value:", info["portfolio_value"])
+for k, v in metrics.items():
+    if isinstance(v, float):
+        print(f"{k:<25}: {v:.4f}")
+    else:
+        print(f"{k:<25}: {v}")
+
 print("Total reward:", total_reward)
-
-if len(history) > 0:
-    print("Total transaction cost:", history["transaction_cost"].sum())
-    print("Average turnover:", history["turnover"].mean())
-
-print("=" * 60)
+print("=" * 60)

@@ -51,13 +51,18 @@ def train_and_eval_ppo(
     embedding_dir: str | None,
     residual_alpha: float,
     seed: int,
+    residual_mode: str = "equal_weight",
+    rebalance_interval: int = 1,
+    momentum_lookback: int = 60,
+    momentum_temp: float = 0.2,
+    downside_only: bool = True,
     timesteps: int = 50000,
     tc_bps: float = 10.0,
 ):
     """
     Trains a PPO policy on train_data and evaluates out-of-sample on test_data.
     """
-    print(f"  [Train & Eval] Variant: {variant_name} | Seed: {seed} | alpha: {residual_alpha} | steps: {timesteps}")
+    print(f"  [Train & Eval] Variant: {variant_name} | Seed: {seed} | alpha: {residual_alpha} | mode: {residual_mode} | interval: {rebalance_interval} | steps: {timesteps}")
     
     use_embeddings = embedding_dir is not None
     
@@ -70,9 +75,14 @@ def train_and_eval_ppo(
             transaction_cost_bps=tc_bps,
             initial_cash=1.0,
             residual_alpha=residual_alpha,
+            residual_mode=residual_mode,
+            rebalance_interval=rebalance_interval,
+            momentum_lookback=momentum_lookback,
+            momentum_temp=momentum_temp,
+            downside_only=downside_only,
             seed=seed,
             lambda_vol=0.10,
-            lambda_conc=0.01,
+            lambda_conc=0.001 if residual_mode == "momentum" else 0.01,
             lambda_txn=1.0,
         )
     else:
@@ -82,10 +92,15 @@ def train_and_eval_ppo(
             transaction_cost_bps=tc_bps,
             initial_cash=1.0,
             residual_alpha=residual_alpha,
+            residual_mode=residual_mode,
+            rebalance_interval=rebalance_interval,
+            momentum_lookback=momentum_lookback,
+            momentum_temp=momentum_temp,
+            downside_only=downside_only,
             seed=seed,
             use_embeddings=False,
             lambda_vol=0.10,
-            lambda_conc=0.01,
+            lambda_conc=0.001 if residual_mode == "momentum" else 0.01,
             lambda_txn=1.0,
         )
 
@@ -116,6 +131,11 @@ def train_and_eval_ppo(
             transaction_cost_bps=tc_bps,
             initial_cash=1.0,
             residual_alpha=residual_alpha,
+            residual_mode=residual_mode,
+            rebalance_interval=rebalance_interval,
+            momentum_lookback=momentum_lookback,
+            momentum_temp=momentum_temp,
+            downside_only=downside_only,
             seed=seed,
         )
     else:
@@ -125,6 +145,11 @@ def train_and_eval_ppo(
             transaction_cost_bps=tc_bps,
             initial_cash=1.0,
             residual_alpha=residual_alpha,
+            residual_mode=residual_mode,
+            rebalance_interval=rebalance_interval,
+            momentum_lookback=momentum_lookback,
+            momentum_temp=momentum_temp,
+            downside_only=downside_only,
             seed=seed,
             use_embeddings=False,
         )
@@ -183,29 +208,46 @@ def main():
     # ---------------------------------------------------------
     variants = [
         {
+            "name": "PPO + GAT (Enhanced Momentum, Weekly)",
+            "embedding_dir": "src/gnn/embeddings_gat",
+            "residual_alpha": 0.15,
+            "residual_mode": "momentum",
+            "rebalance_interval": 5,
+        },
+        {
             "name": "PPO + GAT (Residual)",
             "embedding_dir": "src/gnn/embeddings_gat",
             "residual_alpha": args.alpha,
+            "residual_mode": "equal_weight",
+            "rebalance_interval": 1,
         },
         {
             "name": "PPO + GCN (Residual)",
             "embedding_dir": "src/gnn/embeddings_gcn",
             "residual_alpha": args.alpha,
+            "residual_mode": "equal_weight",
+            "rebalance_interval": 1,
         },
         {
             "name": "PPO + Random GNN (Residual)",
             "embedding_dir": "src/gnn/embeddings_random",
             "residual_alpha": args.alpha,
+            "residual_mode": "equal_weight",
+            "rebalance_interval": 1,
         },
         {
             "name": "PPO + No Embeddings (Residual)",
             "embedding_dir": None,
             "residual_alpha": args.alpha,
+            "residual_mode": "equal_weight",
+            "rebalance_interval": 1,
         },
         {
             "name": "PPO + GAT (Free-form Softmax)",
             "embedding_dir": "src/gnn/embeddings_gat",
             "residual_alpha": 0.0,
+            "residual_mode": "equal_weight",
+            "rebalance_interval": 1,
         },
     ]
 
@@ -235,6 +277,8 @@ def main():
                 embedding_dir=var["embedding_dir"],
                 residual_alpha=var["residual_alpha"],
                 seed=seed,
+                residual_mode=var.get("residual_mode", "equal_weight"),
+                rebalance_interval=var.get("rebalance_interval", 1),
                 timesteps=args.timesteps,
                 tc_bps=10.0,
             )

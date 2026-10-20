@@ -75,8 +75,14 @@ def train_ppo(
     clip_range: float = 0.2,
     ent_coef: float = 0.005,
     lambda_vol: float = 0.10,
-    lambda_conc: float = 0.01,
+    lambda_conc: float = 0.001,
     lambda_txn: float = 1.0,
+    residual_alpha: float = 0.15,
+    residual_mode: str = "momentum",
+    rebalance_interval: int = 5,
+    momentum_lookback: int = 60,
+    momentum_temp: float = 0.2,
+    downside_only: bool = True,
     seed: int = 42,
     log_dir: str = "results/ppo_logs",
     checkpoint_dir: str = "results/ppo_checkpoints",
@@ -89,7 +95,8 @@ def train_ppo(
     print(f"Embedding dir:       {embedding_dir}")
     print(f"Total timesteps:     {total_timesteps}")
     print(f"Checkpoint freq:     {save_freq}")
-    print(f"Reward weights:      lambda_vol={lambda_vol}, lambda_conc={lambda_conc}, lambda_txn={lambda_txn}")
+    print(f"Residual policy:     alpha={residual_alpha}, mode={residual_mode}, rebalance_interval={rebalance_interval}")
+    print(f"Reward weights:      lambda_vol={lambda_vol}, lambda_conc={lambda_conc}, lambda_txn={lambda_txn}, downside_only={downside_only}")
     print(f"Hyperparameters:     lr={learning_rate}, n_steps={n_steps}, batch_size={batch_size}, gamma={gamma}")
     print(f"Seed:                {seed}")
 
@@ -118,6 +125,12 @@ def train_ppo(
         lambda_vol=lambda_vol,
         lambda_conc=lambda_conc,
         lambda_txn=lambda_txn,
+        residual_alpha=residual_alpha,
+        residual_mode=residual_mode,
+        rebalance_interval=rebalance_interval,
+        momentum_lookback=momentum_lookback,
+        momentum_temp=momentum_temp,
+        downside_only=downside_only,
         seed=seed,
     )
 
@@ -195,9 +208,15 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--lambda_vol", type=float, default=0.10)
-    parser.add_argument("--lambda_conc", type=float, default=0.01)
+    parser.add_argument("--lambda_conc", type=float, default=0.001)
     parser.add_argument("--lambda_txn", type=float, default=1.0)
-    parser.add_argument("--embedding_dir", type=str, default="src/gnn/embeddings", help="Directory containing GNN embeddings")
+    parser.add_argument("--residual_alpha", type=float, default=0.15, help="Residual perturbation scale alpha")
+    parser.add_argument("--residual_mode", type=str, default="momentum", choices=["equal_weight", "momentum", "adaptive"])
+    parser.add_argument("--rebalance_interval", type=int, default=5, help="Rebalancing interval in days (5=weekly)")
+    parser.add_argument("--momentum_lookback", type=int, default=60, help="Lookback days for momentum prior")
+    parser.add_argument("--momentum_temp", type=float, default=0.2, help="Softmax temperature for momentum prior")
+    parser.add_argument("--downside_only", action="store_true", default=True, help="Penalize downside volatility only")
+    parser.add_argument("--embedding_dir", type=str, default="src/gnn/embeddings_gat", help="Directory containing GNN embeddings")
     args = parser.parse_args()
 
     train_ppo(
@@ -209,5 +228,12 @@ if __name__ == "__main__":
         lambda_vol=args.lambda_vol,
         lambda_conc=args.lambda_conc,
         lambda_txn=args.lambda_txn,
+        residual_alpha=args.residual_alpha,
+        residual_mode=args.residual_mode,
+        rebalance_interval=args.rebalance_interval,
+        momentum_lookback=args.momentum_lookback,
+        momentum_temp=args.momentum_temp,
+        downside_only=args.downside_only,
         embedding_dir=args.embedding_dir,
     )
+

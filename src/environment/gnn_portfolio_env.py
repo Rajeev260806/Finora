@@ -28,7 +28,15 @@ class GNNPortfolioEnv(PortfolioEnv):
         lambda_conc: float = 0.01,
         lambda_txn: float = 1.0,
         residual_alpha: float = 0.0,
+        residual_mode: str = "equal_weight",
+        momentum_lookback: int = 60,
+        momentum_temp: float = 0.2,
+        rebalance_interval: int = 1,
+        turnover_deadband: float = 0.0,
+        downside_only: bool = True,
+        cash_boost_scale: float = 5.0,
         seed: int | None = None,
+        **kwargs,
     ):
         if embedding_dir is None:
             # Auto-detect default embeddings directory
@@ -53,7 +61,15 @@ class GNNPortfolioEnv(PortfolioEnv):
             lambda_conc=lambda_conc,
             lambda_txn=lambda_txn,
             residual_alpha=residual_alpha,
+            residual_mode=residual_mode,
+            momentum_lookback=momentum_lookback,
+            momentum_temp=momentum_temp,
+            rebalance_interval=rebalance_interval,
+            turnover_deadband=turnover_deadband,
+            downside_only=downside_only,
+            cash_boost_scale=cash_boost_scale,
             seed=seed,
+            **kwargs,
         )
 
         # Ensure observation space accurately reflects GNN embeddings

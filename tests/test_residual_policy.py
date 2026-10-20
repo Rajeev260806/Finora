@@ -65,6 +65,43 @@ class TestResidualPolicy(unittest.TestCase):
         # Stock 0 must have highest weight, but still bounded
         self.assertGreater(weights[0], weights[1])
 
+    def test_momentum_residual_mode(self):
+        env = PortfolioEnv(
+            data=self.data,
+            window=20,
+            residual_alpha=0.1,
+            residual_mode="momentum",
+            momentum_lookback=60,
+            use_embeddings=False,
+        )
+        env.reset()
+        zero_action = np.zeros(env.n_assets + 1, dtype=np.float32)
+        weights = env._process_action(zero_action)
+        self.assertAlmostEqual(float(np.sum(weights)), 1.0, places=5)
+        self.assertTrue(np.all(weights >= 0.0))
+        # Top momentum stock should have higher weight than bottom momentum stock
+        self.assertGreater(np.max(weights[:-1]), np.min(weights[:-1]))
+
+    def test_rebalance_interval_turnover(self):
+        env = PortfolioEnv(
+            data=self.data,
+            window=20,
+            rebalance_interval=5,
+            use_embeddings=False,
+        )
+        env.reset()
+        action1 = np.random.randn(env.n_assets + 1).astype(np.float32)
+        obs, reward, term, trunc, info1 = env.step(action1)
+        # Step 1 should rebalance (step_count = 0)
+        self.assertGreaterEqual(info1["turnover"], 0.0)
+
+        # Step 2 (step_count = 1) should not rebalance -> turnover = 0
+        action2 = np.random.randn(env.n_assets + 1).astype(np.float32)
+        obs, reward, term, trunc, info2 = env.step(action2)
+        self.assertEqual(info2["turnover"], 0.0)
+        self.assertEqual(info2["transaction_cost"], 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()
+

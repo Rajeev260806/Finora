@@ -82,6 +82,13 @@ class PortfolioEnv(gym.Env):
         lambda_conc: float = 0.0,
         lambda_txn: float = 1.0,
         residual_alpha: float = 0.0,
+        residual_mode: str = "equal_weight",
+        momentum_lookback: int = 60,
+        momentum_temp: float = 0.2,
+        rebalance_interval: int = 1,
+        turnover_deadband: float = 0.0,
+        downside_only: bool = True,
+        cash_boost_scale: float = 5.0,
         seed: int | None = None,
     ):
         """
@@ -115,9 +122,23 @@ class PortfolioEnv(gym.Env):
         lambda_txn : float, default=1.0
             Multiplier for transaction cost deduction in reward calculation.
         residual_alpha : float, default=0.0
-            If > 0.0, implements residual policy around Equal Weight:
-            w = softmax(log(1/N) + residual_alpha * tanh(action))
+            If > 0.0, implements residual policy:
+            w = softmax(log(w_base) + residual_alpha * tanh(action))
             as required by PROJECT_ACTION_PLAN.md Phase 3.1.
+        residual_mode : str, default="equal_weight"
+            Prior anchor for residual policy: "equal_weight", "momentum", or "adaptive".
+        momentum_lookback : int, default=60
+            Lookback window for momentum prior calculation.
+        momentum_temp : float, default=0.2
+            Softmax temperature for momentum prior distribution.
+        rebalance_interval : int, default=1
+            Frequency of portfolio rebalancing in trading days (1=daily, 5=weekly, 21=monthly).
+        turnover_deadband : float, default=0.0
+            Minimum turnover threshold to execute trades. Avoids micro-trading friction.
+        downside_only : bool, default=True
+            If True, reward volatility penalty penalizes downside semi-variance only (Sortino-style).
+        cash_boost_scale : float, default=5.0
+            Scale for cash logit boost when action[-1] > 0, enabling defensive cash allocation.
         seed : int, optional
             RNG seed for reproducibility.
         """
@@ -138,6 +159,13 @@ class PortfolioEnv(gym.Env):
         self.lambda_conc = lambda_conc
         self.lambda_txn = lambda_txn
         self.residual_alpha = residual_alpha
+        self.residual_mode = residual_mode
+        self.momentum_lookback = momentum_lookback
+        self.momentum_temp = momentum_temp
+        self.rebalance_interval = rebalance_interval
+        self.turnover_deadband = turnover_deadband
+        self.downside_only = downside_only
+        self.cash_boost_scale = cash_boost_scale
         self.seed_val = seed
 
         # ---- reshape the panel data into a (n_dates, n_assets) returns matrix ----
@@ -390,10 +418,13 @@ class PortfolioEnv(gym.Env):
     def _process_action(self, action: np.ndarray) -> np.ndarray:
         """
         Convert raw agent output into valid long-only weights (incl. cash).
-        Supports standard free-form softmax (residual_alpha=0) and residual policy
-        around Equal Weight (residual_alpha > 0):
-            w = softmax( log(w_base) + residual_alpha * tanh(action) )
-        as specified in PROJECT_ACTION_PLAN.md Phase 3.1.
+        Supports:
+        1. Free-form softmax (residual_alpha=0)
+        2. Residual policy (residual_alpha > 0):
+           - residual_mode="equal_weight": w = softmax( log(1/N) + alpha * tanh(a) )
+           - residual_mode="momentum": w = softmax( log(w_momentum) + alpha * tanh(a) )
+           - residual_mode="adaptive": blends 1/N and momentum priors
+        Cash slot can be boosted smoothly via action[-1] when positive.
         """
         action = np.asarray(action, dtype=np.float32).reshape(-1)
         expected = self.n_assets + 1
@@ -401,13 +432,51 @@ class PortfolioEnv(gym.Env):
             raise ValueError(f"Expected action of length {expected}, got {action.shape[0]}")
 
         if self.residual_alpha > 0.0:
-            # Base weights: Equal weight across stocks (1/N), 0 for cash
             base_weights = np.zeros(expected, dtype=np.float32)
-            base_weights[:self.n_assets] = 1.0 / self.n_assets
-            base_weights[-1] = 1e-4  # tiny epsilon for cash
-            base_logits = np.log(base_weights)
-            # Residual perturbation
+
+            if self.residual_mode == "momentum":
+                lookback = max(10, self.momentum_lookback)
+                start_i = max(0, self.current_idx - lookback)
+                window_slice = self.returns[start_i: self.current_idx]
+                if len(window_slice) > 1:
+                    cum_r = np.prod(1.0 + window_slice, axis=0) - 1.0
+                    temp = max(self.momentum_temp, 0.01)
+                    z = cum_r / temp
+                    z = np.clip(z - np.max(z), -10.0, 0.0)
+                    e = np.exp(z)
+                    stock_w = e / e.sum()
+                else:
+                    stock_w = np.full(self.n_assets, 1.0 / self.n_assets, dtype=np.float32)
+                base_weights[:self.n_assets] = stock_w * (1.0 - 1e-4)
+                base_weights[-1] = 1e-4
+
+            elif self.residual_mode == "adaptive":
+                lookback = max(10, self.momentum_lookback)
+                start_i = max(0, self.current_idx - lookback)
+                window_slice = self.returns[start_i: self.current_idx]
+                if len(window_slice) > 1:
+                    cum_r = np.prod(1.0 + window_slice, axis=0) - 1.0
+                    temp = max(self.momentum_temp, 0.01)
+                    z = cum_r / temp
+                    z = np.clip(z - np.max(z), -10.0, 0.0)
+                    e = np.exp(z)
+                    mom_w = e / e.sum()
+                else:
+                    mom_w = np.full(self.n_assets, 1.0 / self.n_assets, dtype=np.float32)
+                eq_w = np.full(self.n_assets, 1.0 / self.n_assets, dtype=np.float32)
+                stock_w = 0.5 * eq_w + 0.5 * mom_w
+                base_weights[:self.n_assets] = stock_w * (1.0 - 1e-4)
+                base_weights[-1] = 1e-4
+
+            else:  # "equal_weight"
+                base_weights[:self.n_assets] = (1.0 - 1e-4) / self.n_assets
+                base_weights[-1] = 1e-4
+
+            base_logits = np.log(np.maximum(base_weights, 1e-12))
             logits = base_logits + self.residual_alpha * np.tanh(action)
+            # Smooth cash accessibility if action[-1] > 0
+            if action[-1] > 0.0 and self.cash_boost_scale > 0.0:
+                logits[-1] += self.cash_boost_scale * np.tanh(action[-1])
             return self._softmax(logits)
         else:
             return self._softmax(action)
@@ -433,13 +502,17 @@ class PortfolioEnv(gym.Env):
         else:
             log_net_return = float(np.log1p(net_return))
 
-        # Volatility penalty (annualized 20-day rolling portfolio volatility)
+        # Volatility penalty (annualized 20-day rolling portfolio volatility or downside semi-variance)
         vol_penalty = 0.0
         if self.lambda_vol > 0.0 and window_returns.size > 0 and np.sum(asset_weights) > 0.0:
-            # window_returns is (window, n_assets)
             port_win_returns = window_returns @ asset_weights  # (window,)
             if len(port_win_returns) > 1:
-                daily_vol = float(np.std(port_win_returns, ddof=1))
+                if self.downside_only:
+                    # Penalize downside returns (losses below 0)
+                    downside_returns = np.minimum(port_win_returns, 0.0)
+                    daily_vol = float(np.sqrt(np.mean(downside_returns ** 2)))
+                else:
+                    daily_vol = float(np.std(port_win_returns, ddof=1))
                 ann_vol = daily_vol * np.sqrt(252.0)
                 vol_penalty = self.lambda_vol * ann_vol
 
@@ -452,19 +525,47 @@ class PortfolioEnv(gym.Env):
         return log_net_return - vol_penalty - conc_penalty
 
     def step(self, action):
-        weights = self._process_action(action)          # (n_assets+1,), last = cash
+        should_rebalance = True
+        if self.rebalance_interval > 1:
+            step_count = self.current_idx - self.window
+            if step_count % self.rebalance_interval != 0:
+                should_rebalance = False
+
+        if should_rebalance:
+            target_weights = self._process_action(action)
+            raw_to = float(np.sum(np.abs(target_weights - self.prev_weights)))
+            if self.turnover_deadband > 0.0 and raw_to < self.turnover_deadband:
+                weights = self.prev_weights
+                turnover, cost = 0.0, 0.0
+            else:
+                weights = target_weights
+                turnover, cost = self._apply_transaction_costs(weights)
+        else:
+            weights = self.prev_weights
+            turnover, cost = 0.0, 0.0
+
         today_returns = self.returns[self.current_idx]   # (n_assets,)
         asset_weights = weights[:-1]
 
         port_return = float(np.dot(asset_weights, today_returns))  # cash contributes 0
-        turnover, cost = self._apply_transaction_costs(weights)
 
         # Get window slice for reward volatility penalty if needed
         window_slice = self.returns[max(0, self.current_idx - self.window): self.current_idx]
         reward = self._calculate_reward(port_return, cost, asset_weights, window_slice)
 
         self.portfolio_value *= (1.0 + port_return - cost)
-        self.prev_weights = weights
+
+        # Drift weights at the end of the day according to asset price returns
+        drift = asset_weights * (1.0 + today_returns)
+        total_drift = float(drift.sum() + weights[-1])
+        if total_drift > 0:
+            drifted_weights = np.empty_like(weights)
+            drifted_weights[:-1] = drift / total_drift
+            drifted_weights[-1] = weights[-1] / total_drift
+            self.prev_weights = drifted_weights
+        else:
+            self.prev_weights = weights
+
         step_date = self.dates[self.current_idx]
         self.current_idx += 1
 
