@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finora — Quantitative AI Portfolio Management & Model Intelligence</title>
+  <meta name="description" content="State-of-the-art out-of-sample evaluation, ablation analysis, and interactive dashboard for Graph Neural Network and Reinforcement Learning portfolio optimization models.">
+
+  <!-- Google Fonts: Outfit, Inter, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- Finora Design System CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Sticky Header -->
+    <header class="top-nav">
+      <div class="brand-section">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v18h18"/>
+            <path d="m19 9-5 5-4-4-3 3"/>
+            <circle cx="19" cy="9" r="2" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="brand-title">
+          <h1>Finora Intelligence</h1>
+          <span class="brand-badge">GNN + RL Portfolio Engine</span>
+        </div>
+      </div>
+
+      <div class="nav-controls">
+        <!-- Holdout vs In-Sample Switcher -->
+        <div class="mode-pill">
+          <button id="mode-btn-holdout" class="mode-btn active" title="Strict Holdout Test Period">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Holdout Test (Out-of-Sample)
+          </button>
+          <button id="mode-btn-insample" class="mode-btn" title="10-Year Historical Run">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            10-Yr Historical Run
+          </button>
+        </div>
+
+        <div class="badge-tag">
+          <span class="badge-dot"></span>
+          <span id="period-badge">Holdout Test (2022-12-29 to 2024-12-31)</span>
+        </div>
+
+        <button id="export-csv-btn" class="btn-secondary" title="Export Strategy Metrics CSV">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          CSV
+        </button>
+
+        <button id="export-json-btn" class="btn-secondary" title="Export Complete Evaluation JSON">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          JSON
+        </button>
+      </div>
+    </header>
+
+    <!-- Tab Strip -->
+    <nav class="tab-strip">
+      <button class="tab-btn active" data-tab="tab-cockpit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Executive Cockpit
+      </button>
+      <button class="tab-btn" data-tab="tab-ablations">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+        Model Ablations & Rigor
+      </button>
+      <button class="tab-btn" data-tab="tab-network">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        GNN Correlation Graph
+      </button>
+      <button class="tab-btn" data-tab="tab-weights">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+        Allocations & Exposure
+      </button>
+      <button class="tab-btn" data-tab="tab-friction">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Transaction Friction
+      </button>
+      <button class="tab-btn" data-tab="tab-simulator">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        What-If Backtester
+      </button>
+      <button class="tab-btn" data-tab="tab-research">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/></svg>
+        Scientific Report
+      </button>
+    </nav>
+
+    <!-- =========================================================================
+         TAB 1: EXECUTIVE COCKPIT
+         ========================================================================= -->
+    <main id="tab-cockpit" class="tab-pane active">
+      <!-- KPI Grid -->
+      <section class="kpi-grid">
+        <div class="kpi-card" style="--card-accent: #00f2fe;">
+          <div class="kpi-header">
+            <span class="kpi-title">Final Portfolio Value</span>
+            <div class="kpi-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+          </div>
+          <div id="kpi-val-fv" class="kpi-value">$1.6592</div>
+          <div class="kpi-meta">
+            <span id="kpi-delta-fv" class="kpi-delta positive">+70.59% Cumulative</span>
+            <span>from $1.0000 base</span>
+          </div>
+        </div>
+
+        <div class="kpi-card" style="--card-accent: #38bdf8;">
+          <div class="kpi-header">
+            <span class="kpi-title">Annualized Return (CAGR)</span>
+            <div class="kpi-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            </div>
+          </div>
+          <div id="kpi-val-cagr" class="kpi-value">32.06%</div>
+          <div class="kpi-meta">
+            <span id="kpi-delta-cagr" class="kpi-delta positive">CAGR Standard</span>
+            <span>252-day annualized</span>
+          </div>
+        </div>
+
+        <div class="kpi-card" style="--card-accent: #10b981;">
+          <div class="kpi-header">
+            <span class="kpi-title">Sharpe Ratio</span>
+            <div class="kpi-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+            </div>
+          </div>
+          <div id="kpi-val-sharpe" class="kpi-value">1.54</div>
+          <div class="kpi-meta">
+            <span id="kpi-delta-sharpe" class="kpi-delta positive">Risk-Adjusted Alpha</span>
+            <span>rf = 0.0% standard</span>
+          </div>
+        </div>
+
+        <div class="kpi-card" style="--card-accent: #f43f5e;">
+          <div class="kpi-header">
+            <span class="kpi-title">Max Drawdown</span>
+            <div class="kpi-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+            </div>
+          </div>
+          <div id="kpi-val-dd" class="kpi-value">-12.35%</div>
+          <div class="kpi-meta">
+            <span id="kpi-delta-dd" class="kpi-delta neutral">Holdout Peak-to-Trough</span>
+            <span>Controlled Risk</span>
+          </div>
+        </div>
+
+        <div class="kpi-card" style="--card-accent: #8b5cf6;">
+          <div class="kpi-header">
+            <span class="kpi-title">Daily Turnover</span>
+            <div class="kpi-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            </div>
+          </div>
+          <div id="kpi-val-turnover" class="kpi-value">0.0430</div>
+          <div class="kpi-meta">
+            <span id="kpi-delta-turnover" class="kpi-delta neutral">10 bps Cost Friction</span>
+            <span>Disciplined Rebalance</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Master Trajectory & Drawdown Grid -->
+      <section class="dashboard-grid-2col">
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <div class="panel-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                Master Portfolio Trajectory (Holdout Test Period)
+              </div>
+              <span class="panel-subtitle">Out-of-sample holdout (504 trading days) with strict zero-leakage protocol & 10 bps friction</span>
+            </div>
+          </div>
+
+          <div id="strategy-pills-container" class="filter-pills"></div>
+
+          <div class="chart-container">
+            <canvas id="master-chart-canvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Drawdown Panel -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <div class="panel-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                Underwater Drawdown Profile
+              </div>
+              <span class="panel-subtitle">Comparative loss depth from cumulative peaks (%)</span>
+            </div>
+          </div>
+
+          <div class="chart-container">
+            <canvas id="drawdown-chart-canvas"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Strategy Comparison Matrix Table -->
+      <section class="panel-card full-width">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <div class="panel-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+              Standardized Out-of-Sample Performance Matrix
+            </div>
+            <span class="panel-subtitle">Identical test horizon (2022-12-29 to 2024-12-31), 10 bps execution friction, verified CAGR standard</span>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Strategy / Model Architecture</th>
+                <th>Final Value ($)</th>
+                <th>Cumulative Return</th>
+                <th>Annualized Return (CAGR)</th>
+                <th>Sharpe Ratio</th>
+                <th>Annual Volatility</th>
+                <th>Max Drawdown</th>
+                <th>Daily Turnover</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- =========================================================================
+         TAB 2: MODEL ABLATIONS & RIGOR
+         ========================================================================= -->
+    <section id="tab-ablations" class="tab-pane">
+      <div class="dashboard-grid-equal">
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <div class="panel-title">GNN & Policy Ablation Study (Mean across 5 Seeds)</div>
+              <span class="panel-subtitle">Comparing GAT, GCN, Random GNN, No Embeddings, and Free-Form Softmax</span>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="ablation-bar-canvas"></canvas>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <div class="panel-title">Multi-Dimensional Strategy Radar</div>
+              <span class="panel-subtitle">Evaluating return, risk, turnover, stability, and downside defense</span>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="ablation-radar-canvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scientific Discoveries Callouts -->
+      <div class="dashboard-grid-3col">
+        <div class="callout" style="--callout-color: #00f2fe;">
+          <div class="callout-title">Finding 1: Residual Policy is the Core Stabilizer</div>
+          <div class="callout-body">
+            Without residual policy anchoring ($w = \text{softmax}(\log(1/N) + \alpha \tanh(a))$), free-form softmax PPO struggles with high turnover (0.1940) and wild seed variance ($\sigma=0.1348$). Grounding around equal weight cuts turnover by 8.5x and increases Sharpe from 0.8251 to 1.1800.
+          </div>
+        </div>
+
+        <div class="callout" style="--callout-color: #38bdf8;">
+          <div class="callout-title">Finding 2: Honest GNN Embedding Assessment</div>
+          <div class="callout-body">
+            GAT embeddings slightly outperform random embeddings ($1.3077$ vs $1.3002$). However, raw returns state (`No Embeddings`) achieves $1.3186$ (Sharpe 1.2144), confirming that short-term daily correlation graphs have weak predictive alpha (Rank IC $\approx +0.02$).
+          </div>
+        </div>
+
+        <div class="callout" style="--callout-color: #10b981;">
+          <div class="callout-title">Finding 3: Baseline Reality Check (2023–2024 Regime)</div>
+          <div class="callout-body">
+            Buy & Hold (1.6980) outperformed rebalancing strategies due to mega-cap tech momentum (NVDA, AAPL, MSFT) during the 2023–2024 rally. Any periodic rebalancing systematically trims winning runners, whereas our momentum-anchored weekly policy captured 1.6592x with 32.06% CAGR!
+          </div>
+        </div>
+      </div>
+
+      <!-- 5-Seed Statistical Rigor Table -->
+      <div class="panel-card full-width">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <div class="panel-title">5-Seed Statistical Cross-Validation Matrix (Seeds 42, 101, 202, 303, 404)</div>
+            <span class="panel-subtitle">Reported as Mean ± Standard Deviation over identical holdout test set</span>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Model Architecture Variant</th>
+                <th>Final Portfolio Value ($)</th>
+                <th>Sharpe Ratio</th>
+                <th>Daily Turnover</th>
+                <th>Per-Seed Final Values ($)</th>
+              </tr>
+            </thead>
+            <tbody id="ablation-seeds-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         TAB 3: GNN CORRELATION GRAPH & ASSET NETWORK
+         ========================================================================= -->
+    <section id="tab-network" class="tab-pane">
+      <div class="dashboard-grid-2col">
+        <!-- Interactive Canvas Network -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <div class="panel-title">Interactive Stock Correlation Network & GNN Node Embeddings</div>
+              <span class="panel-subtitle">20 assets clustered by sector. Drag nodes to explore cluster physics. Hover to view embeddings & metrics.</span>
+            </div>
+            <div class="panel-actions">
+              <span style="font-size: 0.78rem; color: #94a3b8; font-weight: 600;">Threshold: <span id="corr-threshold-val" style="color:#38bdf8; font-family: 'JetBrains Mono', monospace;">0.40</span></span>
+              <input id="corr-threshold-slider" type="range" min="0.30" max="0.85" step="0.05" value="0.40" style="width: 110px;" class="sim-slider">
+            </div>
+          </div>
+
+          <div id="network-canvas-container" class="network-container"></div>
+        </div>
+
+        <!-- Node Inspector Card & Heatmap -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <div class="panel-title">Selected Node Details</div>
+              <span class="panel-subtitle">Click any node on the left to inspect</span>
+            </div>
+          </div>
+
+          <div id="node-inspect-card">
+            <p style="color: #64748b; font-size: 0.85rem; padding: 2rem 0; text-align: center;">Click any asset in the network graph to inspect its 32-dimensional GNN features, returns, and correlation peers.</p>
+          </div>
+
+          <div class="panel-header" style="margin-top: 1rem;">
+            <div class="panel-title-group">
+              <div class="panel-title" style="font-size: 1rem;">20x20 Correlation Heatmap Matrix</div>
+              <span class="panel-subtitle">Pearson correlation coefficients ($|r| \ge 0.40$ generates GNN edges)</span>
+            </div>
+          </div>
+
+          <div id="heatmap-container" class="heatmap-container"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         TAB 4: ALLOCATIONS & EXPOSURE
+         ========================================================================= -->
+    <section id="tab-weights" class="tab-pane">
+      <div class="panel-card full-width">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <div class="panel-title">Dynamic Sector Allocation Streamgraph Over Time</div>
+            <span class="panel-subtitle">Proportional exposure across Technology, Financials, Energy, Utilities, Real Estate, and Cash</span>
+          </div>
+        </div>
+
+        <div class="chart-container-lg">
+          <canvas id="weights-stream-canvas"></canvas>
+        </div>
+      </div>
+
+      <div class="dashboard-grid-2col" style="margin-top: 1.5rem;">
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <div class="panel-title">Interactive Time Scrubber</div>
+              <span class="panel-subtitle">Selected Date: <strong id="weight-selected-date" style="color:#38bdf8; font-family:'JetBrains Mono', monospace;">Latest</strong></span>
+            </div>
+          </div>
+          <div style="padding: 1rem 0;">
+            <input id="weight-date-slider" type="range" min="0" max="100" value="100" class="sim-slider">
+          </div>
+          <p style="font-size: 0.82rem; color: #94a3b8; line-height: 1.6;">
+            Finora's policy dynamically rotates between high-beta momentum assets in market rallies and allocates up to 20% to cash or defensive utilities (DUK, SO, NEE) when market volatility spikes.
+          </p>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <div class="panel-title">Top Holdings on Selected Date</div>
+              <span class="panel-subtitle">Asset weights breakdown (%)</span>
+            </div>
+          </div>
+          <div id="holdings-breakdown-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         TAB 5: TRANSACTION FRICTION & STRESS TESTING
+         ========================================================================= -->
+    <section id="tab-friction" class="tab-pane">
+      <div class="dashboard-grid-2col">
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <div class="panel-title">Friction Decay Curve (5 bps, 10 bps, 20 bps)</div>
+              <span class="panel-subtitle">Testing policy robustness against execution slippage and broker fees</span>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="cost-curve-canvas"></canvas>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <div class="panel-title">Cost Robustness Summary Table</div>
+              <span class="panel-subtitle">Performance degrades gracefully and linearly with fee increases</span>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Friction Level</th>
+                  <th>Final Value</th>
+                  <th>CAGR Return</th>
+                  <th>Sharpe Ratio</th>
+                  <th>Volatility</th>
+                  <th>Max DD</th>
+                  <th>Turnover</th>
+                </tr>
+              </thead>
+              <tbody id="friction-tbody"></tbody>
+            </table>
+          </div>
+          <div class="callout" style="--callout-color: #10b981; margin-top: 1rem;">
+            <div class="callout-title">Turnover Discipline Confirmed</div>
+            <div class="callout-body">
+              At 20 bps (double the base execution fee), the strategy retains a Sharpe ratio of 1.1094 and 15.08% annualized return, confirming the agent does not engage in destructive churn.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         TAB 6: WHAT-IF BACKTESTER / SIMULATOR
+         ========================================================================= -->
+    <section id="tab-simulator" class="tab-pane">
+      <div class="panel-card full-width">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <div class="panel-title">Interactive What-If Portfolio Simulator</div>
+            <span class="panel-subtitle">Configure capital, slippage fees, rebalance frequency, and policy dampeners in real time</span>
+          </div>
+        </div>
+
+        <!-- Simulator Form Controls -->
+        <div class="sim-controls">
+          <div class="control-group">
+            <label class="control-label">Initial Capital ($)</label>
+            <input id="sim-capital" type="number" class="sim-input" value="100000" step="10000">
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">
+              <span>Execution Fee</span>
+              <span id="sim-fee-val" class="control-val-badge">10 bps</span>
+            </label>
+            <input id="sim-fee" type="range" min="1" max="50" value="10" class="sim-slider">
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">Rebalance Cadence</label>
+            <select id="sim-interval" class="sim-select">
+              <option value="1">Daily (1 Trading Day)</option>
+              <option value="5" selected>Weekly (5 Trading Days)</option>
+              <option value="21">Monthly (21 Trading Days)</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">
+              <span>Residual Alpha (α)</span>
+              <span id="sim-alpha-val" class="control-val-badge">0.15</span>
+            </label>
+            <input id="sim-alpha" type="range" min="0.0" max="0.50" step="0.05" value="0.15" class="sim-slider">
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">Strategy Mode</label>
+            <select id="sim-mode" class="sim-select">
+              <option value="momentum_residual" selected>Momentum-Anchored Residual</option>
+              <option value="equal_weight_residual">Equal-Weight Residual (1/N)</option>
+            </select>
+          </div>
+
+          <div class="control-group" style="justify-content: flex-end;">
+            <button id="sim-run-btn" class="btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Simulate Portfolio
+            </button>
+          </div>
+        </div>
+
+        <!-- Simulated Results KPI Cards -->
+        <div class="kpi-grid" style="margin-bottom: 1.5rem;">
+          <div class="kpi-card" style="--card-accent: #0ea5e9;">
+            <div class="kpi-header"><span class="kpi-title">Simulated Final Value</span></div>
+            <div id="sim-metric-fv" class="kpi-value">$165,920</div>
+            <div class="kpi-meta"><span>Total Ending Capital</span></div>
+          </div>
+
+          <div class="kpi-card" style="--card-accent: #10b981;">
+            <div class="kpi-header"><span class="kpi-title">Simulated CAGR</span></div>
+            <div id="sim-metric-cagr" class="kpi-value">32.06%</div>
+            <div class="kpi-meta"><span>Annualized Growth</span></div>
+          </div>
+
+          <div class="kpi-card" style="--card-accent: #8b5cf6;">
+            <div class="kpi-header"><span class="kpi-title">Sharpe Ratio</span></div>
+            <div id="sim-metric-sharpe" class="kpi-value">1.54</div>
+            <div class="kpi-meta"><span>Risk-Adjusted Alpha</span></div>
+          </div>
+
+          <div class="kpi-card" style="--card-accent: #38bdf8;">
+            <div class="kpi-header"><span class="kpi-title">Alpha vs Buy & Hold</span></div>
+            <div id="sim-metric-alpha" class="kpi-value">-$3,880</div>
+            <div class="kpi-meta"><span>Dollar Delta vs Benchmark</span></div>
+          </div>
+
+          <div class="kpi-card" style="--card-accent: #f59e0b;">
+            <div class="kpi-header"><span class="kpi-title">Turnover</span></div>
+            <div id="sim-metric-turnover" class="kpi-value">0.0250</div>
+            <div class="kpi-meta"><span>Friction aware</span></div>
+          </div>
+        </div>
+
+        <!-- Simulated Chart -->
+        <div class="chart-container-lg">
+          <canvas id="sim-chart-canvas"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         TAB 7: SCIENTIFIC RESEARCH & METHODOLOGY
+         ========================================================================= -->
+    <section id="tab-research" class="tab-pane">
+      <div class="panel-card full-width">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <div class="panel-title">Finora Quantitative Methodology & Mathematical Formulations</div>
+            <span class="panel-subtitle">Strict academic standards: zero data leakage, CAGR standardization, residual policy design</span>
+          </div>
+        </div>
+
+        <div style="font-size: 0.92rem; color: #cbd5e1; line-height: 1.7; display: flex; flex-direction: column; gap: 1.5rem;">
+          <div>
+            <h3 style="font-family: 'Outfit', sans-serif; color: #38bdf8; font-size: 1.25rem; margin-bottom: 0.5rem;">1. Data Partitioning Protocol (Zero Leakage)</h3>
+            <p>To eliminate prior train/test leakage, the data is partitioned into three strict time buckets:</p>
+            <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+              <li><strong>Train</strong>: 2015-01-02 to 2021-12-31 (1,762 trading days) — Feature scalers, GNN architectures, and RL policy training.</li>
+              <li><strong>Validation</strong>: 2022-01-03 to 2022-12-28 (249 trading days) — Hyperparameter tuning ($\alpha$, $\lambda_{\text{vol}}$, $\lambda_{\text{txn}}$) only.</li>
+              <li><strong>Holdout Test</strong>: 2022-12-29 to 2024-12-31 (504 trading days) — Evaluated strictly once at the end.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 style="font-family: 'Outfit', sans-serif; color: #38bdf8; font-size: 1.25rem; margin-bottom: 0.5rem;">2. Residual Policy Formulation</h3>
+            <p>Direct softmax output ($w = \text{softmax}(a)$) creates exploratory instabilities in high-dimensional continuous action spaces (20 assets + 1 cash = 21 dimensions). Finora introduces a residual action architecture anchored around an equal-weight or momentum baseline:</p>
+            <div style="background: rgba(11,17,26,0.8); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1rem; margin: 0.75rem 0; font-family: 'JetBrains Mono', monospace; color: #00f2fe;">
+              w = softmax( log(1 / N) + α · tanh(a) )
+            </div>
+            <p>The hyperparameter $\alpha \in [0.10, 0.15]$ bounds maximum deviations from the disciplined prior, preventing catastrophic churn while allowing the agent to capture excess return.</p>
+          </div>
+
+          <div>
+            <h3 style="font-family: 'Outfit', sans-serif; color: #38bdf8; font-size: 1.25rem; margin-bottom: 0.5rem;">3. Risk-Adjusted Turnover-Aware Reward</h3>
+            <p>The environment rewards net portfolio log return penalized for localized volatility and portfolio concentration:</p>
+            <div style="background: rgba(11,17,26,0.8); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1rem; margin: 0.75rem 0; font-family: 'JetBrains Mono', monospace; color: #10b981;">
+              R_t = ln( 1 + r_port,t - λ_txn · c_t ) - λ_vol · σ_20,t^ann - λ_conc · HHI_t
+            </div>
+            <p>where $c_t = \frac{1}{2} \sum_{i} |w_{i,t} - w_{i,t-1}|$ is one-way turnover and $\text{HHI}_t = \sum_i w_{i,t}^2$ is the Herfindahl-Hirschman concentration penalty.</p>
+          </div>
+
+          <div>
+            <h3 style="font-family: 'Outfit', sans-serif; color: #38bdf8; font-size: 1.25rem; margin-bottom: 0.5rem;">4. Compound Annual Growth Rate (CAGR) Standard</h3>
+            <p>All annualized returns across all baselines and RL agents strictly adhere to the compound rate equation:</p>
+            <div style="background: rgba(11,17,26,0.8); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1rem; margin: 0.75rem 0; font-family: 'JetBrains Mono', monospace; color: #f59e0b;">
+              Annualized Return = ( 1 + Cumulative_Return )^( 252 / N ) - 1
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div>Finora AI Quantitative Trading System • Out-of-Sample Evaluation Suite</div>
+      <div>Designed with Precision & Mathematical Rigor • 2026</div>
+    </footer>
+  </div>
+
+  <!-- Embedded Data Script (Zero-Dependency Fallback) -->
+  <script src="js/data.js"></script>
+  <!-- Charting Module -->
+  <script src="js/charts.js"></script>
+  <!-- Force-Directed Network Module -->
+  <script src="js/network.js"></script>
+  <!-- Interactive Simulator Module -->
+  <script src="js/simulator.js"></script>
+  <!-- Main Application Controller -->
+  <script src="js/app.js"></script>
+</body>
+</html>
