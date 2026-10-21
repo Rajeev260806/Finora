@@ -9,3 +9,6 @@ pyarrow
 scikit-learn
 torch
 torch_geometric
+fastapi
+uvicorn
+httpx

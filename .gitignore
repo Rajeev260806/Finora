@@ -11,6 +11,9 @@ __pycache__/
 build/
 develop-eggs/
 dist/
+frontend/dist/
+frontend/node_modules/
+node_modules/
 downloads/
 eggs/
 .eggs/
