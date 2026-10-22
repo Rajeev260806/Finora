@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import TabsNav from './components/TabsNav';
 import ExecutiveCockpitTab from './components/tabs/ExecutiveCockpitTab';
-import ModelAblationsTab from './components/tabs/ModelAblationsTab';
 import NetworkGraphTab from './components/tabs/NetworkGraphTab';
 import AllocationsTab from './components/tabs/AllocationsTab';
 import TransactionFrictionTab from './components/tabs/TransactionFrictionTab';
@@ -120,9 +119,6 @@ export default function App() {
         <main>
           {activeTab === 'tab-cockpit' && (
             <ExecutiveCockpitTab appData={appData} currentMode={currentMode} />
-          )}
-          {activeTab === 'tab-ablations' && (
-            <ModelAblationsTab appData={appData} />
           )}
           {activeTab === 'tab-network' && (
             <NetworkGraphTab appData={appData} />

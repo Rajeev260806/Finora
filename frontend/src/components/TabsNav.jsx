@@ -1,9 +1,8 @@
 import React from 'react';
-import { LayoutGrid, Layers, Share2, PieChart, DollarSign, Play } from 'lucide-react';
+import { LayoutGrid, Share2, PieChart, DollarSign, Play } from 'lucide-react';
 
 const TABS = [
   { id: 'tab-cockpit', label: 'Executive Cockpit', icon: LayoutGrid },
-  { id: 'tab-ablations', label: 'Model Ablations & Rigor', icon: Layers },
   { id: 'tab-network', label: 'GNN Correlation Graph', icon: Share2 },
   { id: 'tab-weights', label: 'Allocations & Exposure', icon: PieChart },
   { id: 'tab-friction', label: 'Transaction Friction', icon: DollarSign },

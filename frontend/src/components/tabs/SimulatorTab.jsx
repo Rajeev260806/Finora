@@ -9,9 +9,9 @@ export default function SimulatorTab({ appData }) {
 
   // Form parameters
   const [capital, setCapital] = useState(100000);
-  const [feeBps, setFeeBps] = useState(10);
+  const [feeBps, setFeeBps] = useState(8);
   const [interval, setInterval] = useState(5);
-  const [alpha, setAlpha] = useState(0.15);
+  const [alpha, setAlpha] = useState(0.1);
   const [mode, setMode] = useState('ppo_gat_enhanced');
   const [loading, setLoading] = useState(false);
 
@@ -232,7 +232,7 @@ export default function SimulatorTab({ appData }) {
             <input
               type="range"
               min="1"
-              max="50"
+              max="15"
               value={feeBps}
               onChange={(e) => setFeeBps(parseFloat(e.target.value))}
               className="sim-slider"
@@ -247,22 +247,20 @@ export default function SimulatorTab({ appData }) {
               className="sim-select"
               style={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '8px 12px', borderRadius: '8px' }}
             >
-              <option value="1">Daily (1 Trading Day)</option>
               <option value="5">Weekly (5 Trading Days)</option>
-              <option value="21">Monthly (21 Trading Days)</option>
             </select>
           </div>
 
           <div className="control-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label className="control-label" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600 }}>
-              <span>Residual Alpha (α)</span>
+              <span>Residual Fee (α)</span>
               <span className="control-val-badge" style={{ color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>{alpha.toFixed(2)}</span>
             </label>
             <input
               type="range"
               min="0.0"
-              max="0.50"
-              step="0.05"
+              max="0.2"
+              step="0.01"
               value={alpha}
               onChange={(e) => setAlpha(parseFloat(e.target.value))}
               className="sim-slider"
